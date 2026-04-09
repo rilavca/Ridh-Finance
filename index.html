@@ -1275,7 +1275,7 @@ function renderLog(){
     return`<div class="egl">${lbl}</div>`+grps[date].map(e=>`
       <div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div>
         <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${e.person?' · '+e.person:''}</div></div>
-        <div class="er"><div class="ea ${e.type}">${e.type==='income'?'+':e.type==='transfer'?'⇄':'−'}${fmt(e.amount)}</div><div style="display:flex;gap:2px;margin-top:3px;justify-content:flex-end"><button class="edit-icon" onclick="openEditEntry('${e.id}')" title="Edit">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div>
+        <div class="er"><div class="ea ${e.type}">${e.type==='income'?'+':e.type==='transfer'?'⇄':'−'}${fmt(e.amount)}</div><div style="display:flex;gap:2px;margin-top:3px;justify-content:flex-end"><button style="background:none;border:none;font-size:15px;color:var(--blue);cursor:pointer;padding:3px 5px;border-radius:6px;opacity:.8" onclick="openEditEntry('${e.id}')" title="Edit">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div>
       </div>`).join('');
   }).join('');
 }
