@@ -1,5 +1,5 @@
-const CACHE = 'rf-v16';
-const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
+const CACHE = 'rf-v17';
+const ASSETS = ['./manifest.json', './icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -16,32 +16,15 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for navigations
-  if (e.request.mode === 'navigate' || e.request.url.endsWith('index.html')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
+  // Always network for HTML/navigation
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
     return;
   }
 
-  // Cache-first for other assets
+  // Cache-first for non-HTML assets
   e.respondWith(
     caches.match(e.request).then(cached =>
-      cached ||
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => cached)
-    )
-  );
-});
-``
+      cached || fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c
