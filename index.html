@@ -524,7 +524,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
       </div>
       <div id="a-overview">
         <div class="sec" style="padding-bottom:.25rem">
-          <div class="f2"><div class="field"><label>Month</label><select class="inline-sel" id="ov-month"><option value="all">All</option></select></div><div class="field"><label>Year</label><select class="inline-sel" id="ov-year"><option value="all">All</option></select></div></div>
+          
           <div class="f2"><div class="field"><label>Person</label><select class="inline-sel" id="ov-person"><option value="all">All</option></select></div><div class="field"><label>Account</label><select class="inline-sel" id="ov-account"><option value="all">All</option></select></div></div>
 
 <div class="field">
@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.5</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.5.1</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5';
+const APP_VERSION='v15.4.5.1';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -1278,7 +1278,7 @@ function launchApp(){
   // Load family info
   if(typeof initTheme==="function")initTheme();
   loadFamilyInfo();
-  ['ov-month','ov-year','ov-person','ov-account'].forEach(id=>{const s=document.getElementById(id);if(s)s.onchange=renderA;});
+  ['ov-person','ov-account'].forEach(id=>{const s=document.getElementById(id);if(s)s.onchange=renderA;});
   goPage('dashboard');
   setTimeout(()=>{const d=document.getElementById('sync-dot');if(d&&d.classList.contains('syncing'))setSyncStatus('online');},10000);
   // guide in HTML
@@ -1541,8 +1541,8 @@ function filteredEntries(f={}){
 }
 function renderA(){
   popSelects();
-  const ovM=document.getElementById('ov-month').value||'all';
-  const ovY=document.getElementById('ov-year').value||'all';
+  const ovM='all'||'all';
+  const ovY='all'||'all';
   const ovP=document.getElementById('ov-person').value||'all';
   const ovA=document.getElementById('ov-account').value||'all';
   // onchange once
@@ -1563,7 +1563,7 @@ function renderA(){
     const hasBudgets=Object.keys(budgets).length>0;
     if(bvsSection)bvsSection.style.display=hasBudgets?'':'none';
     if(!hasBudgets){bvsEl.innerHTML='<div style="font-size:12px;color:var(--muted)">No budgets set. Go to Settings → Budget to set targets.</div>';return;}
-    const ym=document.getElementById('ov-month').value,yr=document.getElementById('ov-year').value;
+    const ym='all', yr='all';
     let label='Current month';
     if(ym!=='all'){const[yy,mm]=ym.split('-');label=new Date(+yy,+mm-1,1).toLocaleDateString('en-CA',{month:'long',year:'numeric'});}
     else if(yr!=='all')label=yr;
