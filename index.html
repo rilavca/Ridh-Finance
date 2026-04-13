@@ -14,39 +14,6 @@
 <title>Ridh Finance</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-
-<script>
-// Fallback auth UI handlers so buttons remain clickable even if module import fails.
-// The module script will overwrite these once loaded.
-window.__BOOT_OK__ = false;
-function __showAuthErr(msg){
-  const el=document.getElementById('auth-error');
-  if(el){el.textContent=msg;el.classList.add('show');}
-}
-window.switchAuthTab = window.switchAuthTab || function(t){
-  const l=document.getElementById('atab-login');
-  const s=document.getElementById('atab-signup');
-  const al=document.getElementById('auth-login');
-  const asu=document.getElementById('auth-signup');
-  if(l&&s){l.classList.toggle('active',t==='login');s.classList.toggle('active',t==='signup');}
-  if(al&&asu){al.style.display=t==='login'?'block':'none';asu.style.display=t==='signup'?'block':'none';}
-};
-window.doEmailLogin = window.doEmailLogin || function(){
-  __showAuthErr('App scripts did not load. Please refresh, clear site data, and ensure https://www.gstatic.com is not blocked.');
-};
-window.doEmailSignup = window.doEmailSignup || function(){
-  __showAuthErr('App scripts did not load. Please refresh, clear site data, and ensure https://www.gstatic.com is not blocked.');
-};
-window.doGoogleLogin = window.doGoogleLogin || function(){
-  __showAuthErr('App scripts did not load. Please refresh, clear site data, and ensure https://www.gstatic.com is not blocked.');
-};
-window.doForgotPassword = window.doForgotPassword || function(){
-  __showAuthErr('App scripts did not load. Please refresh, clear site data, and ensure https://www.gstatic.com is not blocked.');
-};
-// After a short delay, if module has not set __BOOT_OK__, show a hint.
-setTimeout(()=>{ if(!window.__BOOT_OK__){ __showAuthErr('Loading… If this stays, app scripts are blocked/cached. Try: DevTools → Application → Service Workers → Unregister, then Storage → Clear site data, reload.'); } }, 2500);
-</script>
-
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -667,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.8</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.9</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -922,10 +889,8 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-window.__BOOT_OK__=true;
 
-
-const APP_VERSION='v15.4.8';
+const APP_VERSION='v15.4.9';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -996,14 +961,22 @@ function entryAllowedForAnalytics(e){
   return true;
 }
 
-function getScopedAccounts(){return accounts.filter(a=>scopeAllowsAccount(a));}
-function getScopedEntries(){return entries.filter(e=>entryAllowedForAnalytics(e));}
+
+function getScopedAccounts(){
+  return accounts.filter(a=>scopeAllowsAccount(a));
+}
+function getScopedEntries(){
+  return entries.filter(e=>entryAllowedForAnalytics(e));
+}
 window.setScope=function(scope){
   viewScope=scope||'both';
   try{localStorage.setItem('rf_scope',viewScope);}catch(_){ }
   const sel=document.getElementById('scope-sel');
   if(sel) sel.value=viewScope;
   onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+
 };
 function initScope(){
   try{viewScope=localStorage.getItem('rf_scope')||'both';}catch(_){viewScope='both';}
@@ -1087,7 +1060,7 @@ window.eeFilterAccounts=function(){
   const s=document.getElementById('ee-account');
   const cur=s.dataset.current||'';
   s.innerHTML='<option value="">— select account —</option>';
-  (o?accounts.filter(a=>a.owner===o):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;if(a.name===cur)op.selected=true;s.appendChild(op);});
+  (o?accounts.filter(a=>a.owner===o && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;if(a.name===cur)op.selected=true;s.appendChild(op);});
 };
 window.openEditEntry=function(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
@@ -1127,10 +1100,10 @@ window.saveEditEntry=async function(){
 };
 window.openQuickAdd=function(){document.getElementById('q-date').value=today();document.getElementById('q-amount').value='';document.getElementById('q-desc').value='';const qs=document.getElementById('q-owner');if(qs)qs.innerHTML='<option value="">— select —</option>'+owners.map(o=>`<option>${o.name}</option>`).join('');const qc=document.getElementById('q-category');if(qc)qc.innerHTML='<option value="">— select —</option>'+categories.filter(c=>c.type===quickType||c.type==='both').map(c=>`<option>${c.name}</option>`).join('');const mo=document.getElementById('mo-quick-add');if(mo)mo.classList.add('open');};
 window.setQType=function(t){quickType=t;const qi=document.getElementById('qtbtn-income');const qe=document.getElementById('qtbtn-expense');if(qi){qi.style.background=t==='income'?'var(--inc-bg)':'transparent';qi.style.color=t==='income'?'var(--inc)':'var(--muted)';}if(qe){qe.style.background=t==='expense'?'var(--exp-bg)':'transparent';qe.style.color=t==='expense'?'var(--exp)':'var(--muted)';}const qc=document.getElementById('q-category');if(qc)qc.innerHTML='<option value="">— select —</option>'+categories.filter(c=>c.type===t||c.type==='both').map(c=>`<option>${c.name}</option>`).join('');};
-window.filterQAccs=function(){const owner=document.getElementById('q-owner').value;const qa=document.getElementById('q-account');if(qa)qa.innerHTML='<option value="">— select —</option>'+accounts.filter(a=>!owner||a.owner===owner).map(a=>`<option>${a.name}</option>`).join('');};
+window.filterQAccs=function(){const owner=document.getElementById('q-owner').value;const qa=document.getElementById('q-account');if(qa)qa.innerHTML='<option value="">— select —</option>'+accounts.filter(a=>(!owner||a.owner===owner) && !a.disabled && scopeAllowsAccount(a)).map(a=>`<option>${a.name}</option>`).join('');};
 window.submitQuickAdd=async function(){const amount=parseFloat(document.getElementById('q-amount').value)||0;const date=document.getElementById('q-date').value||today();const account=document.getElementById('q-account').value;const category=document.getElementById('q-category').value;const desc=document.getElementById('q-desc').value.trim();const owner=document.getElementById('q-owner').value;if(!amount||!account||!category){toast('Fill amount, account, category');return;}const id='e'+Date.now()+'_'+Math.random().toString(36).slice(2);await fsSet('entries',id,{id,date,account,accountOwner:owner,category,description:desc,amount:quickType==='income'?amount:-amount,type:quickType,addedBy:currentUser.uid,createdAt:Date.now()});const mo=document.getElementById('mo-quick-add');if(mo)mo.classList.remove('open');toast('✓ Entry added');};
 function calcNetWorth(){let assets=0,liabilities=0;accounts.forEach(a=>{if(!scopeAllowsAccount(a))return; if(a.disabled||a.excludeNetWorth)return; const bal=acctBal(a);const at=getAcctType(a.type);if(at.isCredit){liabilities+=Math.max(0,-bal);}else{assets+=Math.max(0,bal);}});return{assets,liabilities,net:assets-liabilities};}
-function renderDashboard(){if(!document.getElementById('dash-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('dash-nw',fmt(net));se('dash-assets',fmt(assets));se('dash-liab',fmt(liabilities));se('dash-nw-sub',(net>=0?'Positive':'Negative')+' net worth');const mon=currentMonthKey();const me=entries.filter(e=>mk(e.date)===mon && entryAllowedForAnalytics(e));const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);const sr=inc>0?Math.round(((inc-exp)/inc)*100):0;se('dash-inc',fmts(inc));se('dash-exp',fmts(exp));se('dash-sr',inc>0?sr+'%':'–%');const barsEl=document.getElementById('dash-budget-bars');if(barsEl&&Object.keys(budgets).length){const eg=groups.filter(g=>g.type==='expense'||g.type==='both');const seen2=new Set();barsEl.innerHTML=eg.map(g=>{const b=budgets['group:'+g.name]||budgets[g.name];if(!b||seen2.has(g.name))return'';seen2.add(g.name);const spent=Math.abs(me.filter(e=>e.type==='expense'&&getCat(e.category).group===g.name).reduce((s,e)=>s+e.amount,0));const pct=Math.min(100,Math.round(spent/b*100));const cls=pct<75?'bfill-ok':pct<100?'bfill-warn':'bfill-over';const rem=b-spent;const remTxt=rem<0?fmt(Math.abs(rem))+' over':fmt(rem)+' left';const remCol=rem<0?'var(--exp)':pct>=75?'var(--amber)':'var(--inc)';return`<div class="budget-bar-wrap"><div class="budget-bar-top"><div class="budget-bar-left"><span class="budget-bar-name">${g.name}</span></div><div class="budget-bar-right"><div class="budget-bar-amounts">${fmt(spent)} <span style="color:var(--muted);font-weight:400">/ ${fmt(b)}</span></div><div class="budget-bar-rem" style="color:${remCol}">${remTxt}</div></div></div><div class="budget-bar-track"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');}else if(barsEl)barsEl.innerHTML='';const recEl=document.getElementById('dash-recent');if(recEl){const recent=entries.slice(0,5);if(!recent.length){recEl.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No entries yet</p></div>';return;}recEl.innerHTML=recent.map(e=>`<div class="ei-wrap" data-id="${e.id}"><div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div><div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div><div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}</div></div><div class="er"><div class="ea ${e.type}">${e.amount>0?'+':''}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div></div></div>`).join('');initSwipe(recEl);}}
+function renderDashboard(){if(!document.getElementById('dash-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('dash-nw',fmt(net));se('dash-assets',fmt(assets));se('dash-liab',fmt(liabilities));se('dash-nw-sub',(net>=0?'Positive':'Negative')+' net worth');const mon=currentMonthKey();const me=entries.filter(e=>mk(e.date)===mon && entryAllowedForAnalytics(e));const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);const sr=inc>0?Math.round(((inc-exp)/inc)*100):0;se('dash-inc',fmts(inc));se('dash-exp',fmts(exp));se('dash-sr',inc>0?sr+'%':'–%');const barsEl=document.getElementById('dash-budget-bars');if(barsEl&&Object.keys(budgets).length){const eg=groups.filter(g=>g.type==='expense'||g.type==='both');const seen2=new Set();barsEl.innerHTML=eg.map(g=>{const b=budgets['group:'+g.name]||budgets[g.name];if(!b||seen2.has(g.name))return'';seen2.add(g.name);const spent=Math.abs(me.filter(e=>e.type==='expense'&&getCat(e.category).group===g.name).reduce((s,e)=>s+e.amount,0));const pct=Math.min(100,Math.round(spent/b*100));const cls=pct<75?'bfill-ok':pct<100?'bfill-warn':'bfill-over';const rem=b-spent;const remTxt=rem<0?fmt(Math.abs(rem))+' over':fmt(rem)+' left';const remCol=rem<0?'var(--exp)':pct>=75?'var(--amber)':'var(--inc)';return`<div class="budget-bar-wrap"><div class="budget-bar-top"><div class="budget-bar-left"><span class="budget-bar-name">${g.name}</span></div><div class="budget-bar-right"><div class="budget-bar-amounts">${fmt(spent)} <span style="color:var(--muted);font-weight:400">/ ${fmt(b)}</span></div><div class="budget-bar-rem" style="color:${remCol}">${remTxt}</div></div></div><div class="budget-bar-track"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');}else if(barsEl)barsEl.innerHTML='';const recEl=document.getElementById('dash-recent');if(recEl){const recent=getScopedEntries().slice(0,5);if(!recent.length){recEl.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No entries yet</p></div>';return;}recEl.innerHTML=recent.map(e=>`<div class="ei-wrap" data-id="${e.id}"><div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div><div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div><div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}</div></div><div class="er"><div class="ea ${e.type}">${e.amount>0?'+':''}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div></div></div>`).join('');initSwipe(recEl);}}
 function renderNWChart(){if(!document.getElementById('chart-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('nw-total',fmt(net));se('nw-assets',fmt(assets));se('nw-liab',fmt(liabilities));se('nw-sub',(net>=0?'Positive':'Negative')+' net worth');const allMonths=[...new Set(entries.map(e=>mk(e.date)))].sort();if(!allMonths.length)return;const nwData=allMonths.map(mon=>{let a=0,l=0;accounts.forEach(ac=>{if(!scopeAllowsAccount(ac))return; if(ac.disabled||ac.excludeNetWorth)return; const bal=ac.openingBalance+entries.filter(e=>e.account===ac.name&&mk(e.date)<=mon&&(e.accountOwner===ac.owner||!e.accountOwner)).reduce((s,e)=>s+e.amount,0);const at=getAcctType(ac.type);if(at.isCredit)l+=Math.max(0,-bal);else a+=Math.max(0,bal);});return{mon,net:a-l};});const canvas=document.getElementById('chart-nw');if(!canvas)return;if(nwChart)nwChart.destroy();nwChart=new Chart(canvas,{type:'line',data:{labels:nwData.map(d=>ml(d.mon)),datasets:[{label:'Net Worth',data:nwData.map(d=>d.net),borderColor:'#6366F1',backgroundColor:'rgba(99,102,241,0.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#6366F1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(128,128,128,0.06)'},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10},callback:v=>fmts(v)}},x:{grid:{display:false},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10}}}}}});}
 let budgetView='group';
 window.setBudgetView=function(v){budgetView=v;document.getElementById('bv-group').classList.toggle('on',v==='group');document.getElementById('bv-cat').classList.toggle('on',v==='cat');renderBudgetSettings();};
@@ -1335,7 +1308,10 @@ function subscribeToFamily(){
   Object.entries(cols).forEach(([col,setter])=>{
     const unsub=onSnapshot(collection(db,`familyData/${currentFamilyId}/${col}`),snap=>{
       setter(snap.docs.map(d=>({...d.data(),id:d.id})));
-      onDataChange();setSyncStatus('online');
+      onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+setSyncStatus('online');
     },()=>{});
     unsubscribers.push(unsub);
   });
@@ -1375,19 +1351,19 @@ window.filterAccsByOwner=function(){
   const o=document.getElementById('f-owner').value;
   const s=document.getElementById('f-account');
   s.innerHTML='<option value="">— select account —</option>';
-  (o?accounts.filter(a=>a.owner===o):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});
+  (o?accounts.filter(a=>a.owner===o && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});
 };
 window.filterTransferAccs=function(){
   const fo=document.getElementById('ft-from-owner').value,to=document.getElementById('ft-to-owner').value;
   const fs=document.getElementById('ft-from'),ts=document.getElementById('ft-to');
   fs.innerHTML='<option value="">— select account —</option>';ts.innerHTML='<option value="">— select account —</option>';
-  (fo?accounts.filter(a=>a.owner===fo):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;fs.appendChild(op);});
-  (to?accounts.filter(a=>a.owner===to):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;ts.appendChild(op);});
+  (fo?accounts.filter(a=>a.owner===fo && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;fs.appendChild(op);});
+  (to?accounts.filter(a=>a.owner===to && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;ts.appendChild(op);});
 };
 function popSelects(){
   ['f-owner','ft-from-owner','ft-to-owner'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='<option value="">— select —</option>';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;s.appendChild(op);});if(cur)s.value=cur;});
   filterAccsByOwner();filterTransferAccs();
-  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name);if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
+  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name && scopeAllowsAccount(a));if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
   const cs=document.getElementById('f-category');if(cs){const cur=cs.value;cs.innerHTML='<option value="">— select —</option>';categories.forEach(c=>{const op=document.createElement('option');op.value=c.name;op.textContent=c.name;cs.appendChild(op);});if(cur)cs.value=cur;}
   const mo=document.getElementById('ma-owner');if(mo){const cur=mo.value;mo.innerHTML='';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;mo.appendChild(op);});if(cur)mo.value=cur;}
   const mt=document.getElementById('ma-type');if(mt){const cur=mt.value;mt.innerHTML='';acctTypes.forEach(t=>{const op=document.createElement('option');op.value=t.id;op.textContent=t.icon+' '+t.name;mt.appendChild(op);});if(cur)mt.value=cur;}
@@ -1398,10 +1374,16 @@ function popSelects(){
   ['ov-year','pv-year'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';years.forEach(y=>{const op=document.createElement('option');op.value=y;op.textContent=y;s.appendChild(op);});s.value=cur;});
   const months=[...new Set(entries.map(e=>mk(e.date)))].sort().reverse();
   ['ov-month','grp-month'].forEach(id=>{
-  const s=document.getElementById(id);if(!s)return;
-  const cur=(s.value || (id==='ov-month'?'all':''));
+  const s=document.getElementById(id);
+  if(!s) return;
+  const cur = (s.value || (id==='ov-month' ? 'all' : ''));
   if(id==='ov-month') s.innerHTML='<option value="all">All</option>'; else s.innerHTML='';
-  months.forEach(m=>{const op=document.createElement('option');op.value=m;op.textContent=ml(m);s.appendChild(op);});
+  months.forEach(m=>{
+    const op=document.createElement('option');
+    op.value=m;
+    op.textContent=ml(m);
+    s.appendChild(op);
+  });
   if(cur && [...s.options].some(o=>o.value===cur)) s.value=cur;
   else if(id==='ov-month') s.value='all';
   else if(months.length) s.value=months[0];
@@ -1480,18 +1462,32 @@ window.addEntry=async function(){
   document.getElementById('f-owner').value='';document.getElementById('f-account').innerHTML='<option value="">— select holder first —</option>';
   toast('✓ Entry saved');
 };
+
 window.addTransfer=async function(){
-  const date=document.getElementById('ft-date').value,from=document.getElementById('ft-from').value,to=document.getElementById('ft-to').value,raw=parseFloat(document.getElementById('ft-amount').value),desc=document.getElementById('ft-desc').value.trim();
-  if(!date||!from||!to||!raw||raw<=0){toast('Fill all fields');return;}if(from===to){toast('From and To must differ');return;}
+  const date=document.getElementById('ft-date').value,
+        from=document.getElementById('ft-from').value,
+        to=document.getElementById('ft-to').value,
+        raw=parseFloat(document.getElementById('ft-amount').value),
+        desc=document.getElementById('ft-desc').value.trim();
+  const fromOwner=document.getElementById('ft-from-owner').value||'';
+  const toOwner=document.getElementById('ft-to-owner').value||'';
+  if(!date||!from||!to||!raw||raw<=0){toast('Fill all fields');return;}
+  if(from===to && fromOwner===toOwner){toast('From and To must differ');return;}
   const tid=Date.now();
-  await fsSet('entries','e'+tid,{id:'e'+tid,date,account:from,category:'Transfer',person:'',description:desc||'Transfer to '+to,amount:-raw,type:'transfer',transferId:'e'+(tid+1),addedBy:currentUser.uid,createdAt:tid});
-  await fsSet('entries','e'+(tid+1),{id:'e'+(tid+1),date,account:to,category:'Transfer',person:'',description:desc||'Transfer from '+from,amount:raw,type:'transfer',transferId:'e'+tid,addedBy:currentUser.uid,createdAt:tid+1});
-  document.getElementById('ft-amount').value='';document.getElementById('ft-desc').value='';document.getElementById('ft-date').value=today();
-  document.getElementById('ft-from-owner').value='';document.getElementById('ft-to-owner').value='';
+  const d1=(desc?desc+' — ':'')+`Transfer to ${to}`;
+  const d2=(desc?desc+' — ':'')+`Transfer from ${from}`;
+  await fsSet('entries','e'+tid,{id:'e'+tid,date,account:from,accountOwner:fromOwner,category:'Transfer',person:fromOwner,description:d1,amount:-raw,type:'transfer',transferId:'e'+(tid+1),addedBy:currentUser.uid,createdAt:tid});
+  await fsSet('entries','e'+(tid+1),{id:'e'+(tid+1),date,account:to,accountOwner:toOwner,category:'Transfer',person:toOwner,description:d2,amount:raw,type:'transfer',transferId:'e'+tid,addedBy:currentUser.uid,createdAt:tid+1});
+  document.getElementById('ft-amount').value='';
+  document.getElementById('ft-desc').value='';
+  document.getElementById('ft-date').value=today();
+  document.getElementById('ft-from-owner').value='';
+  document.getElementById('ft-to-owner').value='';
   document.getElementById('ft-from').innerHTML='<option>— select account —</option>';
   document.getElementById('ft-to').innerHTML='<option>— select account —</option>';
   toast('✓ Transfer added');
 };
+
  window.delEntry=async function(id){const e=entries.find(x=>x.id===id);if(!e)return;if(!confirm('Delete this entry?'))return;if(e.type==='transfer'&&e.transferId){await fsDel('entries',id);await fsDel('entries',e.transferId);toast('Transfer deleted (both sides)');}else{await fsDel('entries',id);toast('Entry deleted');}};
 
 // ── Log ──
@@ -1512,7 +1508,7 @@ function renderLog(){
     if(logFilters.account!=='all'&&e.account!==logFilters.account)return false;
     if(logFilters.month!=='all'&&e.date.slice(5,7)!==logFilters.month)return false;
     if(logFilters.year!=='all'&&e.date.slice(0,4)!==logFilters.year)return false;
-    if(q&&!(e.category+e.account+(e.description||'')+e.date+(e.person||'')).toLowerCase().includes(q))return false;
+    if(q&&!(e.category+e.account+(e.description||'')+e.date+(getPersonOf(e)||'')).toLowerCase().includes(q))return false;
     return true;
   });
   const el=document.getElementById('log-list');
@@ -1526,7 +1522,7 @@ function renderLog(){
       <div class="ei-wrap" data-id="${e.id}">
         <div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div>
         <div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div>
-          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${e.person?' · '+e.person:''}</div></div>
+          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${getPersonOf(e)?' · '+getPersonOf(e):''}</div></div>
           <div class="er"><div class="ea ${e.type}">${e.type==='income'?'+':e.type==='transfer'?'⇄':'−'}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div>
         </div>
       </div>`).join('');
@@ -1690,7 +1686,7 @@ function renderGroupA(){
   }).join('');
 }
 function renderCreditA(){
-  const creditAccts=accounts.filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
+  const creditAccts=accounts.filter(a=>scopeAllowsAccount(a) && !a.disabled).filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
   const oBal=a=>a.openingBalance+entries.filter(e=>e.account===a.name).reduce((s,e)=>s+e.amount,0);
   const ownerNames=[...new Set(owners.map(o=>o.name))];
   document.getElementById('credit-owner-cards').innerHTML=ownerNames.map(owner=>{
@@ -1738,7 +1734,7 @@ function acctCard(a){
     <div class="ac-actions"><button class="btn-sm" onclick="openEditAcct('${a.id}')">✏️ Edit</button><button class="btn-sm" onclick="stmtForAcct('${a.name.replace(/'/g,"\\'")}')">📄 Statement</button><button class="btn-sm" style="color:var(--exp)" onclick="delAcct('${a.id}')">🗑️ Delete</button></div></div>`;
 }
 window.stmtForAcct=function(name,owner){goPage('statement');setTimeout(()=>{document.getElementById('stmt-acct').value=owner?name+'|||'+owner:name;renderStmt();},80);};
-window.openAddAcct=function(){editAcctId=null;document.getElementById('mo-acct-title').textContent='Add account';['ma-name','ma-bal','ma-lim'].forEach(id=>document.getElementById(id).value='');toggleLF();document.getElementById('mo-acct').classList.add('open');};
+window.openAddAcct=function(){editAcctId=null;document.getElementById('mo-acct-title').textContent='Add account';['ma-name','ma-bal','ma-lim'].forEach(id=>document.getElementById(id).value='');['ma-disabled','ma-exnw','ma-exan','ma-biz'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});toggleLF();document.getElementById('mo-acct').classList.add('open');};
 window.openEditAcct=function(id){const a=accounts.find(x=>x.id===id);if(!a)return;editAcctId=id;document.getElementById('mo-acct-title').textContent='Edit — '+a.name;document.getElementById('ma-name').value=a.name;document.getElementById('ma-bal').value=a.openingBalance||0;document.getElementById('ma-lim').value=a.limit||'';document.getElementById('ma-type').value=a.type;document.getElementById('ma-owner').value=a.owner;
   const d=document.getElementById('ma-disabled');if(d)d.checked=!!a.disabled;
   const exnw=document.getElementById('ma-exnw');if(exnw)exnw.checked=!!a.excludeNetWorth;
