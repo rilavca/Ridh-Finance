@@ -350,6 +350,11 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
 .switch .lbl .t1{font-size:12px;font-weight:800}
 .switch .lbl .t2{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.3}
 
+/* Hide Category multi-select filters on Pivot & By Group (UI only) */
+#pv-cats-all, #pv-cats, #grp-cats-all, #grp-cats { display:none !important; }
+#pv-cats-all + button, #grp-cats-all + button { display:none !important; }
+#pv-cats, #grp-cats { height:0 !important; padding:0 !important; border:0 !important; }
+
 </style>
 </head>
 <body>
@@ -558,9 +563,9 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
           <div class="field"><label>Person</label><select class="inline-sel" id="pv-person" onchange="renderPivot()"><option value="all">All</option></select></div>
         </div>
 
-<div class=\"sec\" style=\"padding-top:0;padding-bottom:.5rem;display:none\">
-  <div class=\"field\">
-  <label>Category (multi-select)</label>
+<div class="sec" style="padding-top:0;padding-bottom:.5rem">
+  <div class="field" style="display:none">
+    <label>Category (multi-select)</label>
     <div style="display:flex;gap:6px;margin-bottom:6px">
       <button class="btn-sm" id="pv-cats-all" onclick="catsSelectAll('pv')">Select all</button>
       <button class="btn-sm" onclick="catsClear('pv')">Clear</button>
@@ -577,7 +582,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
           <div class="f2"><div class="field"><label>Month</label><select class="inline-sel" id="grp-month" onchange="renderGroupA()"></select></div><div class="field"><label>Type</label><select class="inline-sel" id="grp-type" onchange="renderGroupA()"><option value="expense">Expense</option><option value="income">Income</option></select></div></div>
           <div class="f2"><div class="field"><label>Person</label><select class="inline-sel" id="grp-person" onchange="renderGroupA()"><option value="all">All</option></select></div><div class="field"><label>Account</label><select class="inline-sel" id="grp-account" onchange="renderGroupA()"><option value="all">All</option></select></div></div>
 
-<div class=\"field\" style=\"display:none\">
+<div class="field" style="display:none">
   <label>Category (multi-select)</label>
   <div style="display:flex;gap:6px;margin-bottom:6px">
     <button class="btn-sm" id="grp-cats-all" onclick="catsSelectAll('grp')">Select all</button>
