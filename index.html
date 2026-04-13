@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.4</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.5</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.4';
+const APP_VERSION='v15.4.5';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -963,11 +963,9 @@ function entryAllowedForAnalytics(e){
 
 
 function getScopedAccounts(){
-  // Accounts in current scope (Business/Personal/Both)
   return accounts.filter(a=>scopeAllowsAccount(a));
 }
 function getScopedEntries(){
-  // Entries allowed by exclusions + scope
   return entries.filter(e=>entryAllowedForAnalytics(e));
 }
 window.setScope=function(scope){
@@ -976,6 +974,9 @@ window.setScope=function(scope){
   const sel=document.getElementById('scope-sel');
   if(sel) sel.value=viewScope;
   onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+
 };
 function initScope(){
   try{viewScope=localStorage.getItem('rf_scope')||'both';}catch(_){viewScope='both';}
@@ -1307,7 +1308,10 @@ function subscribeToFamily(){
   Object.entries(cols).forEach(([col,setter])=>{
     const unsub=onSnapshot(collection(db,`familyData/${currentFamilyId}/${col}`),snap=>{
       setter(snap.docs.map(d=>({...d.data(),id:d.id})));
-      onDataChange();setSyncStatus('online');
+      onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+setSyncStatus('online');
     },()=>{});
     unsubscribers.push(unsub);
   });
@@ -1711,7 +1715,7 @@ function acctCard(a){
   const uBar=isCred&&a.limit>0?`<div class="ub"><div class="ul2"><span>${fmt(used)} used</span><span>${pct}% of ${fmt(a.limit)}</span></div><div class="ut"><div class="uf ${uCls}" style="width:${Math.min(pct,100)}%"></div></div></div>`:'';
   const bc=isCred?(bal<0?'var(--exp)':'var(--inc)'):bal>=0?'var(--inc)':'var(--exp)';
   const badgeMap={chequing:'bchq',savings:'bsav',credit:'bcrd',loc:'bloc',investment:'binv'};
-  return`<div class="ac"><div class="ac-hdr"><div style="display:flex;align-items:center;flex:1;min-width:0"><div class="ac-icon" style="background:var(--bg3)">${at.icon||'🏦'}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-owner-lbl">${a.owner}</div></div></div><span class="badge ${badgeMap[a.type]||'both2'}">${at.name}</span></div>
+  return`<div class="ac${a.disabled?' disabled':''}"><div class="ac-hdr"><div style="display:flex;align-items:center;flex:1;min-width:0"><div class="ac-icon" style="background:var(--bg3)">${at.icon||'🏦'}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-owner-lbl">${a.owner}</div></div></div><span class="badge ${badgeMap[a.type]||'both2'}">${at.name}</span>${a.disabled?`<span class="badge2 bdis">Disabled</span>`:''}${(!a.disabled && a.excludeNetWorth)?`<span class="badge2 bex">No NW</span>`:''}${(!a.disabled && a.excludeAnalytics)?`<span class="badge2 bex">No IE</span>`:''}${a.isBusiness?`<span class="badge2 bbiz">Biz</span>`:''}</div>
     <div class="ac-bal" style="color:${bc}">${fmt(bal)}</div>${uBar}
     <div class="ac-actions"><button class="btn-sm" onclick="openEditAcct('${a.id}')">✏️ Edit</button><button class="btn-sm" onclick="stmtForAcct('${a.name.replace(/'/g,"\\'")}')">📄 Statement</button><button class="btn-sm" style="color:var(--exp)" onclick="delAcct('${a.id}')">🗑️ Delete</button></div></div>`;
 }
