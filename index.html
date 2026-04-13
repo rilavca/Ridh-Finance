@@ -1606,7 +1606,7 @@ function renderDonut(fe){
   const total=sorted.reduce((s,x)=>s+x[1],0);
   document.getElementById('donut-legend').innerHTML=sorted.map((x,i)=>`<div class="li2"><div class="ld" style="background:${colors[i]}"></div><div class="ll-lbl">${x[0]}</div><div class="ll-val" style="color:${colors[i]}">${Math.round(x[1]/total*100)}%</div></div>`).join('');
 }
-\nfunction renderPivotDonut(fe){\n const canvas=document.getElementById('chart-pivot-donut');\n const leg=document.getElementById('pivot-donut-legend');\n if(!canvas||!leg) return;\n const data={};\n (fe||[]).forEach(e=>{if(e.type==='transfer')return;const g=(getCat(e.category).group||'Other');data[g]=(data[g]||0)+Math.abs(e.amount);});\n const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,10);\n if(pivotDonutChart){pivotDonutChart.destroy();pivotDonutChart=null;}\n if(!sorted.length){leg.innerHTML='<p style=\"font-size:12px;color:var(--muted)\">No data</p>';return;}\n const colors=sorted.map((_,i)=>CC[i%CC.length]);\n const total=sorted.reduce((s,x)=>s+x[1],0);\n pivotDonutChart=new Chart(canvas.getContext('2d'),{type:'doughnut',data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const v=c.raw||0;const pct=total?Math.round(v/total*100):0;return `${c.label}: ${fmt(v)} (${pct}%)`;}}},bodyFont:{family:'Inter'}}}});\n leg.innerHTML=sorted.map((x,i)=>{const v=x[1];const pct=total?Math.round(v/total*100):0;return `<div class=\"li2\"><div class=\"ld\" style=\"background:${colors[i]}\"></div><div class=\"ll-lbl\">${x[0]}</div><div class=\"ll-val\" style=\"color:${colors[i]}\">${fmt(v)} · ${pct}%</div></div>`;}).join('');\n}\nfunction renderMoMTable(months,fe){
+\nfunction renderPivotDonut(fe){\n const canvas=document.getElementById('chart-pivot-donut');\n const leg=document.getElementById('pivot-donut-legend');\n if(!canvas||!leg) return;\n const data={};\n (fe||[]).forEach(e=>{\n  if(e.type==='transfer')return;\n  const cat=(e.category||'Other');\n  data[cat]=(data[cat]||0)+Math.abs(e.amount);\n });\n const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,10);\n if(pivotDonutChart){pivotDonutChart.destroy();pivotDonutChart=null;}\n if(!sorted.length){leg.innerHTML='<p style=\"font-size:12px;color:var(--muted)\">No data</p>';return;}\n const colors=sorted.map((_,i)=>CC[i%CC.length]);\n const total=sorted.reduce((s,x)=>s+x[1],0);\n pivotDonutChart=new Chart(canvas.getContext('2d'),{type:'doughnut',data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const v=c.raw||0;const pct=total?Math.round(v/total*100):0;return `${c.label}: ${fmt(v)} (${pct}%)`;}}},bodyFont:{family:'Inter'}}}});\n leg.innerHTML=sorted.map((x,i)=>{const v=x[1];const pct=total?Math.round(v/total*100):0;return `<div class=\"li2\"><div class=\"ld\" style=\"background:${colors[i]}\"></div><div class=\"ll-lbl\">${x[0]}</div><div class=\"ll-val\" style=\"color:${colors[i]}\">${fmt(v)} · ${pct}%</div></div>`;}).join('');\n}\nfunction renderMoMTable(months,fe){
   document.getElementById('mom-tbody').innerHTML=months.slice(-12).reverse().map(m=>{
     const inc=fe.filter(e=>mk(e.date)===m&&e.type==='income').reduce((s,e)=>s+e.amount,0);
     const exp=fe.filter(e=>mk(e.date)===m&&e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);
@@ -1615,10 +1615,7 @@ function renderDonut(fe){
   }).join('');
 }
 function renderPivot(){
-  // ✅ Always populate Pivot categories
-  ensureCatMultiSelect('pv-cats', pvCatsSel, (vals)=>{ pvCatsSel = vals; renderPivot(); });
-
-  const yr=document.getElementById('pv-year').value||'all',pt=document.getElementById('pv-type').value||'expense',pp=document.getElementById('pv-person').value||'all';
+const yr=document.getElementById('pv-year').value||'all',pt=document.getElementById('pv-type').value||'expense',pp=document.getElementById('pv-person').value||'all';
   const fe=filteredEntries({year:yr,person:pp}).filter(e=>pt==='both'?e.type!=='transfer':e.type===pt);
   renderPivotDonut(fe);
   const months=[...new Set(fe.map(e=>mk(e.date)))].sort();
@@ -1639,10 +1636,7 @@ function renderPivot(){
 }
 window.togglePG=function(g){expandedPivot[g]=!expandedPivot[g];renderPivot();};
 function renderGroupA(){
-  // ✅ Always populate Group categories
-  ensureCatMultiSelect('grp-cats', grpCatsSel, (vals)=>{ grpCatsSel = vals; renderGroupA(); });
-
-  const month=document.getElementById('grp-month').value,gtype=document.getElementById('grp-type').value||'expense',gp=document.getElementById('grp-person').value||'all',ga=document.getElementById('grp-account').value||'all';
+const month=document.getElementById('grp-month').value,gtype=document.getElementById('grp-type').value||'expense',gp=document.getElementById('grp-person').value||'all',ga=document.getElementById('grp-account').value||'all';
   if(!month)return;
   const fe=filteredEntries({month,person:gp,account:ga}).filter(e=>e.type===gtype);
   const gd={};fe.forEach(e=>{const g=getCat(e.category).group||'Other';gd[g]=(gd[g]||0)+Math.abs(e.amount);});
