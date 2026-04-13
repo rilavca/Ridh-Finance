@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.6</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.7</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.6';
+const APP_VERSION='v15.4.7';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -961,8 +961,13 @@ function entryAllowedForAnalytics(e){
   return true;
 }
 
-function getScopedAccounts(){return accounts.filter(a=>scopeAllowsAccount(a));}
-function getScopedEntries(){return entries.filter(e=>entryAllowedForAnalytics(e));}
+
+function getScopedAccounts(){
+  return accounts.filter(a=>scopeAllowsAccount(a));
+}
+function getScopedEntries(){
+  return entries.filter(e=>entryAllowedForAnalytics(e));
+}
 window.setScope=function(scope){
   viewScope=scope||'both';
   try{localStorage.setItem('rf_scope',viewScope);}catch(_){ }
@@ -1358,7 +1363,7 @@ window.filterTransferAccs=function(){
 function popSelects(){
   ['f-owner','ft-from-owner','ft-to-owner'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='<option value="">— select —</option>';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;s.appendChild(op);});if(cur)s.value=cur;});
   filterAccsByOwner();filterTransferAccs();
-  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name);if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
+  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name && scopeAllowsAccount(a));if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
   const cs=document.getElementById('f-category');if(cs){const cur=cs.value;cs.innerHTML='<option value="">— select —</option>';categories.forEach(c=>{const op=document.createElement('option');op.value=c.name;op.textContent=c.name;cs.appendChild(op);});if(cur)cs.value=cur;}
   const mo=document.getElementById('ma-owner');if(mo){const cur=mo.value;mo.innerHTML='';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;mo.appendChild(op);});if(cur)mo.value=cur;}
   const mt=document.getElementById('ma-type');if(mt){const cur=mt.value;mt.innerHTML='';acctTypes.forEach(t=>{const op=document.createElement('option');op.value=t.id;op.textContent=t.icon+' '+t.name;mt.appendChild(op);});if(cur)mt.value=cur;}
@@ -1368,11 +1373,15 @@ function popSelects(){
   const years=[...new Set(entries.map(e=>e.date.slice(0,4)))].sort().reverse();
   ['ov-year','pv-year'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';years.forEach(y=>{const op=document.createElement('option');op.value=y;op.textContent=y;s.appendChild(op);});s.value=cur;});
   const months=[...new Set(entries.map(e=>mk(e.date)))].sort().reverse();
-['ov-month','grp-month'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=(s.value|| (id==='ov-month'?'all':''));
+  ['ov-month','grp-month'].forEach(id=>{
+  const s=document.getElementById(id);if(!s)return;
+  const cur=(s.value || (id==='ov-month'?'all':''));
   if(id==='ov-month') s.innerHTML='<option value="all">All</option>'; else s.innerHTML='';
   months.forEach(m=>{const op=document.createElement('option');op.value=m;op.textContent=ml(m);s.appendChild(op);});
-  // restore selection
-  if(cur && [...s.options].some(o=>o.value===cur)) s.value=cur; else if(id==='ov-month') s.value='all'; else if(months.length) s.value=months[0];
+  // restore previous selection
+  if(cur && [...s.options].some(o=>o.value===cur)) s.value=cur;
+  else if(id==='ov-month') s.value='all';
+  else if(months.length) s.value=months[0];
 });if(id==='ov-month'&&!cur)s.value='all';else if(id==='grp-month'&&months.length&&!s.value)s.value=months[0];});
 }
 
@@ -1672,7 +1681,7 @@ function renderGroupA(){
   }).join('');
 }
 function renderCreditA(){
-  const creditAccts=accounts.filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
+  const creditAccts=accounts.filter(a=>scopeAllowsAccount(a) && !a.disabled).filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
   const oBal=a=>a.openingBalance+entries.filter(e=>e.account===a.name).reduce((s,e)=>s+e.amount,0);
   const ownerNames=[...new Set(owners.map(o=>o.name))];
   document.getElementById('credit-owner-cards').innerHTML=ownerNames.map(owner=>{
