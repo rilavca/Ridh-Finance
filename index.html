@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.3</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.5</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.3';
+const APP_VERSION='v15.4.5';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -963,11 +963,9 @@ function entryAllowedForAnalytics(e){
 
 
 function getScopedAccounts(){
-  // Accounts in current scope (Business/Personal/Both)
   return accounts.filter(a=>scopeAllowsAccount(a));
 }
 function getScopedEntries(){
-  // Entries that are allowed by account rules + scope
   return entries.filter(e=>entryAllowedForAnalytics(e));
 }
 window.setScope=function(scope){
@@ -1102,11 +1100,11 @@ window.saveEditEntry=async function(){
 };
 window.openQuickAdd=function(){document.getElementById('q-date').value=today();document.getElementById('q-amount').value='';document.getElementById('q-desc').value='';const qs=document.getElementById('q-owner');if(qs)qs.innerHTML='<option value="">— select —</option>'+owners.map(o=>`<option>${o.name}</option>`).join('');const qc=document.getElementById('q-category');if(qc)qc.innerHTML='<option value="">— select —</option>'+categories.filter(c=>c.type===quickType||c.type==='both').map(c=>`<option>${c.name}</option>`).join('');const mo=document.getElementById('mo-quick-add');if(mo)mo.classList.add('open');};
 window.setQType=function(t){quickType=t;const qi=document.getElementById('qtbtn-income');const qe=document.getElementById('qtbtn-expense');if(qi){qi.style.background=t==='income'?'var(--inc-bg)':'transparent';qi.style.color=t==='income'?'var(--inc)':'var(--muted)';}if(qe){qe.style.background=t==='expense'?'var(--exp-bg)':'transparent';qe.style.color=t==='expense'?'var(--exp)':'var(--muted)';}const qc=document.getElementById('q-category');if(qc)qc.innerHTML='<option value="">— select —</option>'+categories.filter(c=>c.type===t||c.type==='both').map(c=>`<option>${c.name}</option>`).join('');};
-window.filterQAccs=function(){const owner=document.getElementById('q-owner').value;const qa=document.getElementById('q-account');if(qa)qa.innerHTML='<option value="">— select —</option>'+accounts.filter(a=>!owner||a.owner===owner).map(a=>`<option>${a.name}</option>`).join('');};
+window.filterQAccs=function(){const owner=document.getElementById('q-owner').value;const qa=document.getElementById('q-account');if(qa)qa.innerHTML='<option value="">— select —</option>'+accounts.filter(a=>(!owner||a.owner===owner) && !a.disabled && scopeAllowsAccount(a)).map(a=>`<option>${a.name}</option>`).join('');};
 window.submitQuickAdd=async function(){const amount=parseFloat(document.getElementById('q-amount').value)||0;const date=document.getElementById('q-date').value||today();const account=document.getElementById('q-account').value;const category=document.getElementById('q-category').value;const desc=document.getElementById('q-desc').value.trim();const owner=document.getElementById('q-owner').value;if(!amount||!account||!category){toast('Fill amount, account, category');return;}const id='e'+Date.now()+'_'+Math.random().toString(36).slice(2);await fsSet('entries',id,{id,date,account,accountOwner:owner,category,description:desc,amount:quickType==='income'?amount:-amount,type:quickType,addedBy:currentUser.uid,createdAt:Date.now()});const mo=document.getElementById('mo-quick-add');if(mo)mo.classList.remove('open');toast('✓ Entry added');};
 function calcNetWorth(){let assets=0,liabilities=0;accounts.forEach(a=>{if(!scopeAllowsAccount(a))return; if(a.disabled||a.excludeNetWorth)return; const bal=acctBal(a);const at=getAcctType(a.type);if(at.isCredit){liabilities+=Math.max(0,-bal);}else{assets+=Math.max(0,bal);}});return{assets,liabilities,net:assets-liabilities};}
-function renderDashboard(){if(!document.getElementById('dash-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('dash-nw',fmt(net));se('dash-assets',fmt(assets));se('dash-liab',fmt(liabilities));se('dash-nw-sub',(net>=0?'Positive':'Negative')+' net worth');const mon=currentMonthKey();const me=entries.filter(e=>mk(e.date)===mon && entryAllowedForAnalytics(e));const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);const sr=inc>0?Math.round(((inc-exp)/inc)*100):0;se('dash-inc',fmts(inc));se('dash-exp',fmts(exp));se('dash-sr',inc>0?sr+'%':'–%');const barsEl=document.getElementById('dash-budget-bars');if(barsEl&&Object.keys(budgets).length){const eg=groups.filter(g=>g.type==='expense'||g.type==='both');const seen2=new Set();barsEl.innerHTML=eg.map(g=>{const b=budgets['group:'+g.name]||budgets[g.name];if(!b||seen2.has(g.name))return'';seen2.add(g.name);const spent=Math.abs(me.filter(e=>e.type==='expense'&&getCat(e.category).group===g.name).reduce((s,e)=>s+e.amount,0));const pct=Math.min(100,Math.round(spent/b*100));const cls=pct<75?'bfill-ok':pct<100?'bfill-warn':'bfill-over';const rem=b-spent;const remTxt=rem<0?fmt(Math.abs(rem))+' over':fmt(rem)+' left';const remCol=rem<0?'var(--exp)':pct>=75?'var(--amber)':'var(--inc)';return`<div class="budget-bar-wrap"><div class="budget-bar-top"><div class="budget-bar-left"><span class="budget-bar-name">${g.name}</span></div><div class="budget-bar-right"><div class="budget-bar-amounts">${fmt(spent)} <span style="color:var(--muted);font-weight:400">/ ${fmt(b)}</span></div><div class="budget-bar-rem" style="color:${remCol}">${remTxt}</div></div></div><div class="budget-bar-track"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');}else if(barsEl)barsEl.innerHTML='';const recEl=document.getElementById('dash-recent');if(recEl){const recent=entries.slice(0,5);if(!recent.length){recEl.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No entries yet</p></div>';return;}recEl.innerHTML=recent.map(e=>`<div class="ei-wrap" data-id="${e.id}"><div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div><div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div><div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}</div></div><div class="er"><div class="ea ${e.type}">${e.amount>0?'+':''}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div></div></div>`).join('');initSwipe(recEl);}}
-function renderNWChart(){if(!document.getElementById('chart-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('nw-total',fmt(net));se('nw-assets',fmt(assets));se('nw-liab',fmt(liabilities));se('nw-sub',(net>=0?'Positive':'Negative')+' net worth');const allMonths=[...new Set(entries.map(e=>mk(e.date)))].sort();if(!allMonths.length)return;const nwData=allMonths.map(mon=>{let a=0,l=0;accounts.forEach(ac=>{if(!scopeAllowsAccount(ac))return;const bal=ac.openingBalance+entries.filter(e=>e.account===ac.name&&mk(e.date)<=mon&&(e.accountOwner===ac.owner||!e.accountOwner)).reduce((s,e)=>s+e.amount,0);const at=getAcctType(ac.type);if(at.isCredit)l+=Math.max(0,-bal);else a+=Math.max(0,bal);});return{mon,net:a-l};});const canvas=document.getElementById('chart-nw');if(!canvas)return;if(nwChart)nwChart.destroy();nwChart=new Chart(canvas,{type:'line',data:{labels:nwData.map(d=>ml(d.mon)),datasets:[{label:'Net Worth',data:nwData.map(d=>d.net),borderColor:'#6366F1',backgroundColor:'rgba(99,102,241,0.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#6366F1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(128,128,128,0.06)'},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10},callback:v=>fmts(v)}},x:{grid:{display:false},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10}}}}}});}
+function renderDashboard(){if(!document.getElementById('dash-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('dash-nw',fmt(net));se('dash-assets',fmt(assets));se('dash-liab',fmt(liabilities));se('dash-nw-sub',(net>=0?'Positive':'Negative')+' net worth');const mon=currentMonthKey();const me=entries.filter(e=>mk(e.date)===mon && entryAllowedForAnalytics(e));const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);const sr=inc>0?Math.round(((inc-exp)/inc)*100):0;se('dash-inc',fmts(inc));se('dash-exp',fmts(exp));se('dash-sr',inc>0?sr+'%':'–%');const barsEl=document.getElementById('dash-budget-bars');if(barsEl&&Object.keys(budgets).length){const eg=groups.filter(g=>g.type==='expense'||g.type==='both');const seen2=new Set();barsEl.innerHTML=eg.map(g=>{const b=budgets['group:'+g.name]||budgets[g.name];if(!b||seen2.has(g.name))return'';seen2.add(g.name);const spent=Math.abs(me.filter(e=>e.type==='expense'&&getCat(e.category).group===g.name).reduce((s,e)=>s+e.amount,0));const pct=Math.min(100,Math.round(spent/b*100));const cls=pct<75?'bfill-ok':pct<100?'bfill-warn':'bfill-over';const rem=b-spent;const remTxt=rem<0?fmt(Math.abs(rem))+' over':fmt(rem)+' left';const remCol=rem<0?'var(--exp)':pct>=75?'var(--amber)':'var(--inc)';return`<div class="budget-bar-wrap"><div class="budget-bar-top"><div class="budget-bar-left"><span class="budget-bar-name">${g.name}</span></div><div class="budget-bar-right"><div class="budget-bar-amounts">${fmt(spent)} <span style="color:var(--muted);font-weight:400">/ ${fmt(b)}</span></div><div class="budget-bar-rem" style="color:${remCol}">${remTxt}</div></div></div><div class="budget-bar-track"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div></div>`;}).join('');}else if(barsEl)barsEl.innerHTML='';const recEl=document.getElementById('dash-recent');if(recEl){const recent=getScopedEntries().slice(0,5);if(!recent.length){recEl.innerHTML='<div class="empty"><div class="empty-icon">📋</div><p>No entries yet</p></div>';return;}recEl.innerHTML=recent.map(e=>`<div class="ei-wrap" data-id="${e.id}"><div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div><div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div><div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}</div></div><div class="er"><div class="ea ${e.type}">${e.amount>0?'+':''}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div></div></div>`).join('');initSwipe(recEl);}}
+function renderNWChart(){if(!document.getElementById('chart-nw'))return;const{assets,liabilities,net}=calcNetWorth();const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};se('nw-total',fmt(net));se('nw-assets',fmt(assets));se('nw-liab',fmt(liabilities));se('nw-sub',(net>=0?'Positive':'Negative')+' net worth');const allMonths=[...new Set(entries.map(e=>mk(e.date)))].sort();if(!allMonths.length)return;const nwData=allMonths.map(mon=>{let a=0,l=0;accounts.forEach(ac=>{if(!scopeAllowsAccount(ac))return; if(ac.disabled||ac.excludeNetWorth)return; const bal=ac.openingBalance+entries.filter(e=>e.account===ac.name&&mk(e.date)<=mon&&(e.accountOwner===ac.owner||!e.accountOwner)).reduce((s,e)=>s+e.amount,0);const at=getAcctType(ac.type);if(at.isCredit)l+=Math.max(0,-bal);else a+=Math.max(0,bal);});return{mon,net:a-l};});const canvas=document.getElementById('chart-nw');if(!canvas)return;if(nwChart)nwChart.destroy();nwChart=new Chart(canvas,{type:'line',data:{labels:nwData.map(d=>ml(d.mon)),datasets:[{label:'Net Worth',data:nwData.map(d=>d.net),borderColor:'#6366F1',backgroundColor:'rgba(99,102,241,0.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#6366F1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(128,128,128,0.06)'},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10},callback:v=>fmts(v)}},x:{grid:{display:false},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10}}}}}});}
 let budgetView='group';
 window.setBudgetView=function(v){budgetView=v;document.getElementById('bv-group').classList.toggle('on',v==='group');document.getElementById('bv-cat').classList.toggle('on',v==='cat');renderBudgetSettings();};
 window.renderBudgetSettings=function(){
@@ -1450,18 +1448,32 @@ window.addEntry=async function(){
   document.getElementById('f-owner').value='';document.getElementById('f-account').innerHTML='<option value="">— select holder first —</option>';
   toast('✓ Entry saved');
 };
+
 window.addTransfer=async function(){
-  const date=document.getElementById('ft-date').value,from=document.getElementById('ft-from').value,to=document.getElementById('ft-to').value,raw=parseFloat(document.getElementById('ft-amount').value),desc=document.getElementById('ft-desc').value.trim();
-  if(!date||!from||!to||!raw||raw<=0){toast('Fill all fields');return;}if(from===to){toast('From and To must differ');return;}
+  const date=document.getElementById('ft-date').value,
+        from=document.getElementById('ft-from').value,
+        to=document.getElementById('ft-to').value,
+        raw=parseFloat(document.getElementById('ft-amount').value),
+        desc=document.getElementById('ft-desc').value.trim();
+  const fromOwner=document.getElementById('ft-from-owner').value||'';
+  const toOwner=document.getElementById('ft-to-owner').value||'';
+  if(!date||!from||!to||!raw||raw<=0){toast('Fill all fields');return;}
+  if(from===to && fromOwner===toOwner){toast('From and To must differ');return;}
   const tid=Date.now();
-  await fsSet('entries','e'+tid,{id:'e'+tid,date,account:from,category:'Transfer',person:'',description:desc||'Transfer to '+to,amount:-raw,type:'transfer',transferId:'e'+(tid+1),addedBy:currentUser.uid,createdAt:tid});
-  await fsSet('entries','e'+(tid+1),{id:'e'+(tid+1),date,account:to,category:'Transfer',person:'',description:desc||'Transfer from '+from,amount:raw,type:'transfer',transferId:'e'+tid,addedBy:currentUser.uid,createdAt:tid+1});
-  document.getElementById('ft-amount').value='';document.getElementById('ft-desc').value='';document.getElementById('ft-date').value=today();
-  document.getElementById('ft-from-owner').value='';document.getElementById('ft-to-owner').value='';
+  const d1=(desc?desc+' — ':'')+`Transfer to ${to}`;
+  const d2=(desc?desc+' — ':'')+`Transfer from ${from}`;
+  await fsSet('entries','e'+tid,{id:'e'+tid,date,account:from,accountOwner:fromOwner,category:'Transfer',person:fromOwner,description:d1,amount:-raw,type:'transfer',transferId:'e'+(tid+1),addedBy:currentUser.uid,createdAt:tid});
+  await fsSet('entries','e'+(tid+1),{id:'e'+(tid+1),date,account:to,accountOwner:toOwner,category:'Transfer',person:toOwner,description:d2,amount:raw,type:'transfer',transferId:'e'+tid,addedBy:currentUser.uid,createdAt:tid+1});
+  document.getElementById('ft-amount').value='';
+  document.getElementById('ft-desc').value='';
+  document.getElementById('ft-date').value=today();
+  document.getElementById('ft-from-owner').value='';
+  document.getElementById('ft-to-owner').value='';
   document.getElementById('ft-from').innerHTML='<option>— select account —</option>';
   document.getElementById('ft-to').innerHTML='<option>— select account —</option>';
   toast('✓ Transfer added');
 };
+
  window.delEntry=async function(id){const e=entries.find(x=>x.id===id);if(!e)return;if(!confirm('Delete this entry?'))return;if(e.type==='transfer'&&e.transferId){await fsDel('entries',id);await fsDel('entries',e.transferId);toast('Transfer deleted (both sides)');}else{await fsDel('entries',id);toast('Entry deleted');}};
 
 // ── Log ──
@@ -1703,19 +1715,28 @@ function acctCard(a){
   const uBar=isCred&&a.limit>0?`<div class="ub"><div class="ul2"><span>${fmt(used)} used</span><span>${pct}% of ${fmt(a.limit)}</span></div><div class="ut"><div class="uf ${uCls}" style="width:${Math.min(pct,100)}%"></div></div></div>`:'';
   const bc=isCred?(bal<0?'var(--exp)':'var(--inc)'):bal>=0?'var(--inc)':'var(--exp)';
   const badgeMap={chequing:'bchq',savings:'bsav',credit:'bcrd',loc:'bloc',investment:'binv'};
-  return`<div class="ac"><div class="ac-hdr"><div style="display:flex;align-items:center;flex:1;min-width:0"><div class="ac-icon" style="background:var(--bg3)">${at.icon||'🏦'}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-owner-lbl">${a.owner}</div></div></div><span class="badge ${badgeMap[a.type]||'both2'}">${at.name}</span></div>
+  return`<div class="ac${a.disabled?' disabled':''}"><div class="ac-hdr"><div style="display:flex;align-items:center;flex:1;min-width:0"><div class="ac-icon" style="background:var(--bg3)">${at.icon||'🏦'}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-owner-lbl">${a.owner}</div></div></div><span class="badge ${badgeMap[a.type]||'both2'}">${at.name}</span>${a.disabled?`<span class="badge2 bdis">Disabled</span>`:''}${(!a.disabled && a.excludeNetWorth)?`<span class="badge2 bex">No NW</span>`:''}${(!a.disabled && a.excludeAnalytics)?`<span class="badge2 bex">No IE</span>`:''}${a.isBusiness?`<span class="badge2 bbiz">Biz</span>`:''}</div>
     <div class="ac-bal" style="color:${bc}">${fmt(bal)}</div>${uBar}
     <div class="ac-actions"><button class="btn-sm" onclick="openEditAcct('${a.id}')">✏️ Edit</button><button class="btn-sm" onclick="stmtForAcct('${a.name.replace(/'/g,"\\'")}')">📄 Statement</button><button class="btn-sm" style="color:var(--exp)" onclick="delAcct('${a.id}')">🗑️ Delete</button></div></div>`;
 }
 window.stmtForAcct=function(name,owner){goPage('statement');setTimeout(()=>{document.getElementById('stmt-acct').value=owner?name+'|||'+owner:name;renderStmt();},80);};
-window.openAddAcct=function(){editAcctId=null;document.getElementById('mo-acct-title').textContent='Add account';['ma-name','ma-bal','ma-lim'].forEach(id=>document.getElementById(id).value='');toggleLF();document.getElementById('mo-acct').classList.add('open');};
-window.openEditAcct=function(id){const a=accounts.find(x=>x.id===id);if(!a)return;editAcctId=id;document.getElementById('mo-acct-title').textContent='Edit — '+a.name;document.getElementById('ma-name').value=a.name;document.getElementById('ma-bal').value=a.openingBalance||0;document.getElementById('ma-lim').value=a.limit||'';document.getElementById('ma-type').value=a.type;document.getElementById('ma-owner').value=a.owner;toggleLF();document.getElementById('mo-acct').classList.add('open');};
+window.openAddAcct=function(){editAcctId=null;document.getElementById('mo-acct-title').textContent='Add account';['ma-name','ma-bal','ma-lim'].forEach(id=>document.getElementById(id).value='');['ma-disabled','ma-exnw','ma-exan','ma-biz'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});toggleLF();document.getElementById('mo-acct').classList.add('open');};
+window.openEditAcct=function(id){const a=accounts.find(x=>x.id===id);if(!a)return;editAcctId=id;document.getElementById('mo-acct-title').textContent='Edit — '+a.name;document.getElementById('ma-name').value=a.name;document.getElementById('ma-bal').value=a.openingBalance||0;document.getElementById('ma-lim').value=a.limit||'';document.getElementById('ma-type').value=a.type;document.getElementById('ma-owner').value=a.owner;
+  const d=document.getElementById('ma-disabled');if(d)d.checked=!!a.disabled;
+  const exnw=document.getElementById('ma-exnw');if(exnw)exnw.checked=!!a.excludeNetWorth;
+  const exan=document.getElementById('ma-exan');if(exan)exan.checked=!!a.excludeAnalytics;
+  const bz=document.getElementById('ma-biz');if(bz)bz.checked=!!a.isBusiness;
+  toggleLF();document.getElementById('mo-acct').classList.add('open');};
 window.toggleLF=function(){const t=document.getElementById('ma-type').value;const at=getAcctType(t);document.getElementById('ma-lim-f').style.display=at.isCredit?'block':'none';};
 window.saveAcct=async function(){
   const name=document.getElementById('ma-name').value.trim();if(!name){toast('Enter account name');return;}
   const owner=document.getElementById('ma-owner').value,type=document.getElementById('ma-type').value,ob=parseFloat(document.getElementById('ma-bal').value)||0,lim=parseFloat(document.getElementById('ma-lim').value)||0;
   const id=editAcctId||('a'+Date.now());
-  await fsSet('accounts',id,{id,name,owner,type,openingBalance:ob,limit:lim});
+  const disabled=!!document.getElementById('ma-disabled')?.checked;
+  const excludeNetWorth=!!document.getElementById('ma-exnw')?.checked;
+  const excludeAnalytics=!!document.getElementById('ma-exan')?.checked;
+  const isBusiness=!!document.getElementById('ma-biz')?.checked;
+  await fsSet('accounts',id,{id,name,owner,type,openingBalance:ob,limit:lim,disabled,excludeNetWorth,excludeAnalytics,isBusiness});
   document.getElementById('mo-acct').classList.remove('open');toast(editAcctId?'✓ Account updated':'✓ Account added');editAcctId=null;
 };
 window.delAcct=async function(id){
