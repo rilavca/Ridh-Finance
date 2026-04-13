@@ -558,6 +558,17 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
           <div class="field"><label>Person</label><select class="inline-sel" id="pv-person" onchange="renderPivot()"><option value="all">All</option></select></div>
         </div>
 
+<div class=\"sec\" style=\"padding-top:0;padding-bottom:.5rem;display:none\">
+  <div class=\"field\">
+  <label>Category (multi-select)</label>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button class="btn-sm" id="pv-cats-all" onclick="catsSelectAll('pv')">Select all</button>
+      <button class="btn-sm" onclick="catsClear('pv')">Clear</button>
+    </div>
+    <select class="inline-multi" id="pv-cats" multiple></select>
+    <div class="mini-hint">Leave empty to include all categories.</div>
+  </div>
+</div>
 </div>
         <div class="sec" style="padding-top:0"><div class="pivot-wrap"><table class="pt" id="pivot-table"></table></div></div>
       </div>
@@ -565,6 +576,16 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="sec" style="padding-bottom:.5rem">
           <div class="f2"><div class="field"><label>Month</label><select class="inline-sel" id="grp-month" onchange="renderGroupA()"></select></div><div class="field"><label>Type</label><select class="inline-sel" id="grp-type" onchange="renderGroupA()"><option value="expense">Expense</option><option value="income">Income</option></select></div></div>
           <div class="f2"><div class="field"><label>Person</label><select class="inline-sel" id="grp-person" onchange="renderGroupA()"><option value="all">All</option></select></div><div class="field"><label>Account</label><select class="inline-sel" id="grp-account" onchange="renderGroupA()"><option value="all">All</option></select></div></div>
+
+<div class=\"field\" style=\"display:none\">
+  <label>Category (multi-select)</label>
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <button class="btn-sm" id="grp-cats-all" onclick="catsSelectAll('grp')">Select all</button>
+    <button class="btn-sm" onclick="catsClear('grp')">Clear</button>
+  </div>
+  <select class="inline-multi" id="grp-cats" multiple></select>
+  <div class="mini-hint">Optional: filter chart to selected categories.</div>
+</div>
 
         </div>
         <div class="sec" style="padding-top:0"><div class="cw"><canvas id="chart-groups"></canvas></div><div id="grp-drill" style="margin-top:1rem"></div></div>
@@ -885,7 +906,7 @@ let afType='all',afOwner='all',afSort='owner';
 let aTab='overview';
 let expandedPivot={};
 let momChart=null,donutChart=null,groupChart=null,nwChart=null;
-let ovCatsSel=[];
+let ovCatsSel=[], pvCatsSel=[], grpCatsSel=[];
 let viewScope='both';
 let budgets={};
 let quickType='income';
