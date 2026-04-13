@@ -526,65 +526,6 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="sec" style="padding-bottom:.25rem">
           
           <div class="f2"><div class="field"><label>Person</label><select class="inline-sel" id="ov-person"><option value="all">All</option></select></div><div class="field"><label>Account</label><select class="inline-sel" id="ov-account"><option value="all">All</option></select></div></div>
-
-<div class="field">
-  <label>Category (multi-select)</label>
-  <div style="display:flex;gap:6px;margin-bottom:6px">
-    <button class="btn-sm" id="ov-cats-all" onclick="catsSelectAll('ov')">Select all</button>
-    <button class="btn-sm" onclick="catsClear('ov')">Clear</button>
-  </div>
-  <select class="inline-multi" id="ov-cats" multiple></select>
-  <div class="mini-hint">Desktop: Ctrl/⌘ + click. Mobile: tap multiple items.</div>
-</div>
-
-        </div>
-        <div class="stat-grid">
-          <div class="stat-card stat-card-inc"><div class="stat-icon">💰</div><div class="stat-label">Income</div><div class="stat-value sv-inc" id="ov-inc">$0</div></div>
-          <div class="stat-card stat-card-exp"><div class="stat-icon">💸</div><div class="stat-label">Expense</div><div class="stat-value sv-exp" id="ov-exp">$0</div></div>
-          <div class="stat-card stat-card-net"><div class="stat-icon">📊</div><div class="stat-label">Net</div><div class="stat-value sv-blue" id="ov-net">$0</div></div>
-        </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1rem;margin:0 1.25rem .75rem;display:flex;align-items:center;gap:14px"><div class="sr-circle" id="sr-circle">–%</div><div style="flex:1"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700">Savings Rate</div><div class="sr-value" id="sr-value">–%</div><div class="sr-desc" id="sr-desc">Aim for 20%+</div></div></div>
-        
-        <div class="sec" style="padding-top:0"><div class="sec-title">Income vs Expense</div><div class="cwl"><canvas id="chart-mom"></canvas></div></div>
-        <div class="sec" style="padding-top:0"><div class="sec-title">Expense breakdown</div><div class="ds"><div class="dw"><canvas id="chart-donut"></canvas></div><div class="ll" id="donut-legend"></div></div></div>
-        <div class="sec" style="padding-top:0"><div class="sec-title">Monthly summary</div><table class="mt2"><thead><tr><th>Month</th><th style="text-align:right">Income</th><th style="text-align:right">Expense</th><th style="text-align:right">Net</th></tr></thead><tbody id="mom-tbody"></tbody></table></div>
-        <div class="sec" style="padding-top:0" id="ov-budget-section"><div class="sec-title" style="display:flex;justify-content:space-between;align-items:baseline">Budget vs Actual <span style="font-size:11px;font-weight:400;color:var(--muted)" id="ov-budget-month-label"></span></div><div id="ov-budget-bars"></div></div>
-      </div>
-      <div id="a-networth" style="display:none"><div class="nw-hero"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.75;color:#fff">Net Worth</div><div class="nw-value" id="nw-total">$0</div><div class="nw-sub" id="nw-sub">Assets minus liabilities</div><div class="nw-row"><div class="nw-col"><div class="nw-col-lbl">Assets</div><div class="nw-col-val" id="nw-assets">$0</div></div><div class="nw-col"><div class="nw-col-lbl">Liabilities</div><div class="nw-col-val" id="nw-liab">$0</div></div></div></div><div class="sec"><div class="sec-title">Net worth over time</div><div class="cwl2"><canvas id="chart-nw"></canvas></div></div></div>
-<div id="a-pivot" style="display:none">
-        <div class="sec" style="padding-bottom:.5rem"><div class="f3">
-          <div class="field"><label>Year</label><select class="inline-sel" id="pv-year" onchange="renderPivot()"><option value="all">All</option></select></div>
-          <div class="field"><label>Type</label><select class="inline-sel" id="pv-type" onchange="renderPivot()"><option value="expense">Expense</option><option value="income">Income</option><option value="both">Both</option></select></div>
-          <div class="field"><label>Person</label><select class="inline-sel" id="pv-person" onchange="renderPivot()"><option value="all">All</option></select></div>
-        </div>
-
-<div class="sec" style="padding-top:0;padding-bottom:.5rem">
-  <div class="field">
-    <label>Category (multi-select)</label>
-    <div style="display:flex;gap:6px;margin-bottom:6px">
-      <button class="btn-sm" id="pv-cats-all" onclick="catsSelectAll('pv')">Select all</button>
-      <button class="btn-sm" onclick="catsClear('pv')">Clear</button>
-    </div>
-    <select class="inline-multi" id="pv-cats" multiple></select>
-    <div class="mini-hint">Leave empty to include all categories.</div>
-  </div>
-</div>
-</div>
-        <div class="sec" style="padding-top:0"><div class="pivot-wrap"><table class="pt" id="pivot-table"></table></div></div>
-      </div>
-      <div id="a-groups" style="display:none">
-        <div class="sec" style="padding-bottom:.5rem">
-          <div class="f2"><div class="field"><label>Month</label><select class="inline-sel" id="grp-month" onchange="renderGroupA()"></select></div><div class="field"><label>Type</label><select class="inline-sel" id="grp-type" onchange="renderGroupA()"><option value="expense">Expense</option><option value="income">Income</option></select></div></div>
-          <div class="f2"><div class="field"><label>Person</label><select class="inline-sel" id="grp-person" onchange="renderGroupA()"><option value="all">All</option></select></div><div class="field"><label>Account</label><select class="inline-sel" id="grp-account" onchange="renderGroupA()"><option value="all">All</option></select></div></div>
-
-<div class="field">
-  <label>Category (multi-select)</label>
-  <div style="display:flex;gap:6px;margin-bottom:6px">
-    <button class="btn-sm" id="grp-cats-all" onclick="catsSelectAll('grp')">Select all</button>
-    <button class="btn-sm" onclick="catsClear('grp')">Clear</button>
-  </div>
-  <select class="inline-multi" id="grp-cats" multiple></select>
-  <div class="mini-hint">Optional: filter chart to selected categories.</div>
 </div>
 
         </div>
@@ -634,7 +575,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.5.5</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.5.6</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +831,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.5';
+const APP_VERSION='v15.4.5.6';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -905,7 +846,7 @@ let logFilters={type:'all',person:'all',account:'all',month:'all',year:'all'};
 let afType='all',afOwner='all',afSort='owner';
 let aTab='overview';
 let expandedPivot={};
-let momChart=null,donutChart=null,groupChart=null,nwChart=null;
+let momChart=null,donutChart=null,pivotDonutChart=null,groupChart=null,nwChart=null;
 let ovCatsSel=[], pvCatsSel=[], grpCatsSel=[];
 let viewScope='both';
 let budgets={};
@@ -1665,7 +1606,7 @@ function renderDonut(fe){
   const total=sorted.reduce((s,x)=>s+x[1],0);
   document.getElementById('donut-legend').innerHTML=sorted.map((x,i)=>`<div class="li2"><div class="ld" style="background:${colors[i]}"></div><div class="ll-lbl">${x[0]}</div><div class="ll-val" style="color:${colors[i]}">${Math.round(x[1]/total*100)}%</div></div>`).join('');
 }
-function renderMoMTable(months,fe){
+\nfunction renderPivotDonut(fe){\n const canvas=document.getElementById('chart-pivot-donut');\n const leg=document.getElementById('pivot-donut-legend');\n if(!canvas||!leg) return;\n const data={};\n (fe||[]).forEach(e=>{if(e.type==='transfer')return;const g=(getCat(e.category).group||'Other');data[g]=(data[g]||0)+Math.abs(e.amount);});\n const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,10);\n if(pivotDonutChart){pivotDonutChart.destroy();pivotDonutChart=null;}\n if(!sorted.length){leg.innerHTML='<p style=\"font-size:12px;color:var(--muted)\">No data</p>';return;}\n const colors=sorted.map((_,i)=>CC[i%CC.length]);\n const total=sorted.reduce((s,x)=>s+x[1],0);\n pivotDonutChart=new Chart(canvas.getContext('2d'),{type:'doughnut',data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const v=c.raw||0;const pct=total?Math.round(v/total*100):0;return `${c.label}: ${fmt(v)} (${pct}%)`;}}},bodyFont:{family:'Inter'}}}});\n leg.innerHTML=sorted.map((x,i)=>{const v=x[1];const pct=total?Math.round(v/total*100):0;return `<div class=\"li2\"><div class=\"ld\" style=\"background:${colors[i]}\"></div><div class=\"ll-lbl\">${x[0]}</div><div class=\"ll-val\" style=\"color:${colors[i]}\">${fmt(v)} · ${pct}%</div></div>`;}).join('');\n}\nfunction renderMoMTable(months,fe){
   document.getElementById('mom-tbody').innerHTML=months.slice(-12).reverse().map(m=>{
     const inc=fe.filter(e=>mk(e.date)===m&&e.type==='income').reduce((s,e)=>s+e.amount,0);
     const exp=fe.filter(e=>mk(e.date)===m&&e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);
@@ -1679,8 +1620,9 @@ function renderPivot(){
 
   const yr=document.getElementById('pv-year').value||'all',pt=document.getElementById('pv-type').value||'expense',pp=document.getElementById('pv-person').value||'all';
   const fe=filteredEntries({year:yr,person:pp}).filter(e=>pt==='both'?e.type!=='transfer':e.type===pt);
+  renderPivotDonut(fe);
   const months=[...new Set(fe.map(e=>mk(e.date)))].sort();
-  if(!months.length){document.getElementById('pivot-table').innerHTML='<tr><td style="padding:2rem;color:var(--muted);font-size:13px">No data</td></tr>';return;}
+  if(!months.length){renderPivotDonut([]);document.getElementById('pivot-table').innerHTML='<tr><td style="padding:2rem;color:var(--muted);font-size:13px">No data</td></tr>';return;}
   const data={};fe.forEach(e=>{const g=getCat(e.category).group||'Other';if(!data[g])data[g]={};if(!data[g][e.category])data[g][e.category]={};const m=mk(e.date);data[g][e.category][m]=(data[g][e.category][m]||0)+Math.abs(e.amount);});
   const uG=Object.keys(data).sort();let html=`<thead><tr><th>Group / Category</th>${months.map(m=>`<th>${ml(m)}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
   const gT={};months.forEach(m=>{gT[m]=0;});
