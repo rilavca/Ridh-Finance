@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.5.4</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.5.5</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.4';
+const APP_VERSION='v15.4.5.5';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -912,6 +912,45 @@ let budgets={};
 let quickType='income';
 let editAcctId=null,editGrpIdx=null,editCatIdx=null,editOwnerIdx=null,editAtypeIdx=null;
 let unsubscribers=[];
+
+// ✅ Ensures Analytics category multi-selects are always populated (module-safe)
+function ensureCatMultiSelect(selectId, selectedArr, onChangeFn){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+
+  const cats = (categories || []).slice().sort((a,b)=>{
+    const ga = (a.group || '').localeCompare(b.group || '');
+    if(ga !== 0) return ga;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const prev = new Set(selectedArr || []);
+  const scrollTop = sel.scrollTop;
+
+  if(sel.options.length !== cats.length){
+    sel.innerHTML = '';
+    cats.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c.name;
+      opt.textContent = c.group ? `${c.name} (${c.group})` : c.name;
+      if(prev.has(c.name)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } else {
+    [...sel.options].forEach(o => { o.selected = prev.has(o.value); });
+  }
+
+  sel.scrollTop = scrollTop;
+
+  if(!sel.dataset.bound){
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', ()=>{
+      const vals = [...sel.selectedOptions].map(o=>o.value);
+      onChangeFn(vals);
+    });
+  }
+}
+
 const CC=['#10B981','#6366F1','#F43F5E','#F59E0B','#A855F7','#14B8A6','#F97316','#3B82F6','#EC4899','#84CC16','#06B6D4','#EF4444'];
 
 // ── Default data (generic starter — no personal data) ──
@@ -997,50 +1036,6 @@ window.catsClear=function(which){
   [...sel.options].forEach(o=>o.selected=false);
   sel.dispatchEvent(new Event('change'));
 };
-
-// ── Category multi-select filters (Overview/Pivot/By Group) ──
-function _catOptLabel(c){
-  const g = c.group ? ` (${c.group})` : '';
-  return `${c.name}${g}`;
-}
-function populateCategoryMultiSelects(){
-  const cats = (categories||[]).slice().sort((a,b)=>{
-    const ga=(a.group||'').localeCompare(b.group||'');
-    if(ga!==0) return ga;
-    return (a.name||'').localeCompare(b.name||'');
-  });
-  const map = [
-    {id:'ov-cats', selVar:'ov'},
-    {id:'pv-cats', selVar:'pv'},
-    {id:'grp-cats', selVar:'grp'}
-  ];
-  map.forEach(({id, selVar})=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    const saved = (selVar==='ov'?ovCatsSel:selVar==='pv'?pvCatsSel:grpCatsSel) || [];
-    const prev = new Set(saved);
-    const scrollTop = el.scrollTop;
-    el.innerHTML = '';
-    cats.forEach(c=>{
-      const op = document.createElement('option');
-      op.value = c.name;
-      op.textContent = _catOptLabel(c);
-      if(prev.has(c.name)) op.selected = true;
-      el.appendChild(op);
-    });
-    el.scrollTop = scrollTop;
-    if(!el.dataset.bound){
-      el.dataset.bound='1';
-      el.addEventListener('change', ()=>{
-        const vals = [...el.selectedOptions].map(o=>o.value);
-        if(selVar==='ov'){ ovCatsSel = vals; renderA(); }
-        else if(selVar==='pv'){ pvCatsSel = vals; renderPivot(); }
-        else { grpCatsSel = vals; renderGroupA(); }
-      });
-    }
-  });
-}
-
 
 
 // ── Auth flow ──
@@ -1585,6 +1580,8 @@ function filteredEntries(f={}){
 }
 function renderA(){
   popSelects();
+  // ✅ Always populate Overview categories before using ovCatsSel
+  ensureCatMultiSelect('ov-cats', ovCatsSel, (vals)=>{ ovCatsSel = vals; renderA(); });
   const ovM='all'||'all';
   const ovY='all'||'all';
   const ovP=document.getElementById('ov-person').value||'all';
@@ -1677,6 +1674,9 @@ function renderMoMTable(months,fe){
   }).join('');
 }
 function renderPivot(){
+  // ✅ Always populate Pivot categories
+  ensureCatMultiSelect('pv-cats', pvCatsSel, (vals)=>{ pvCatsSel = vals; renderPivot(); });
+
   const yr=document.getElementById('pv-year').value||'all',pt=document.getElementById('pv-type').value||'expense',pp=document.getElementById('pv-person').value||'all';
   const fe=filteredEntries({year:yr,person:pp}).filter(e=>pt==='both'?e.type!=='transfer':e.type===pt);
   const months=[...new Set(fe.map(e=>mk(e.date)))].sort();
@@ -1697,6 +1697,9 @@ function renderPivot(){
 }
 window.togglePG=function(g){expandedPivot[g]=!expandedPivot[g];renderPivot();};
 function renderGroupA(){
+  // ✅ Always populate Group categories
+  ensureCatMultiSelect('grp-cats', grpCatsSel, (vals)=>{ grpCatsSel = vals; renderGroupA(); });
+
   const month=document.getElementById('grp-month').value,gtype=document.getElementById('grp-type').value||'expense',gp=document.getElementById('grp-person').value||'all',ga=document.getElementById('grp-account').value||'all';
   if(!month)return;
   const fe=filteredEntries({month,person:gp,account:ga}).filter(e=>e.type===gtype);
