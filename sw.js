@@ -1,30 +1,45 @@
-const CACHE = 'rf-v17';
-const ASSETS = ['./manifest.json', './icon.png'];
+const CACHE = 'rf-v21';
+const ASSETS = ['./index.html', './manifest.json', './icon.png'];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
+  );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  // Always network for HTML/navigation
-  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+
+  // ✅ Never handle non-GET (Firestore uses POST internally)
+  if (req.method !== 'GET') return;
+
+  // ✅ Network-first for navigation (HTML)
+  if (req.mode === 'navigate' || req.destination === 'document') {
+    event.respondWith(
+      fetch(req).catch(() => caches.match('./index.html'))
+    );
     return;
   }
 
-  // Cache-first for non-HTML assets
-  e.respondWith(
-    caches.match(e.request).then(cached =>
-      cached || fetch(e.request).then(res => {
+  // ✅ Cache-first for static assets
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
         const clone = res.clone();
-        caches.open(CACHE).then(c
+        caches.open(CACHE).then((c) => c.put(req, clone));
+        return res;
+      });
+    })
+  );
+});
