@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.9</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.10</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.9';
+const APP_VERSION='v15.4.10';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -961,13 +961,8 @@ function entryAllowedForAnalytics(e){
   return true;
 }
 
-
-function getScopedAccounts(){
-  return accounts.filter(a=>scopeAllowsAccount(a));
-}
-function getScopedEntries(){
-  return entries.filter(e=>entryAllowedForAnalytics(e));
-}
+function getScopedAccounts(){return accounts.filter(a=>scopeAllowsAccount(a));}
+function getScopedEntries(){return entries.filter(e=>entryAllowedForAnalytics(e));}
 window.setScope=function(scope){
   viewScope=scope||'both';
   try{localStorage.setItem('rf_scope',viewScope);}catch(_){ }
@@ -1376,7 +1371,7 @@ function popSelects(){
   ['ov-month','grp-month'].forEach(id=>{
   const s=document.getElementById(id);
   if(!s) return;
-  const cur = (s.value || (id==='ov-month' ? 'all' : ''));
+  const cur=(s.value || (id==='ov-month'?'all':''));
   if(id==='ov-month') s.innerHTML='<option value="all">All</option>'; else s.innerHTML='';
   months.forEach(m=>{
     const op=document.createElement('option');
@@ -1412,13 +1407,29 @@ function updateLogFilters(){
 // ── Navigation ──
 const PAGES=['dashboard','add','log','analytics','accounts','statement','profile','settings','guide'];
 window.goPage=function(p){
-  PAGES.forEach(id=>{const pg=document.getElementById('page-'+id);if(pg)pg.classList.toggle('active',id===p);const nb=document.getElementById('nav-'+id);if(nb)nb.classList.toggle('active',id===p);});
+  PAGES.forEach(id=>{
+    const pg=document.getElementById('page-'+id);
+    if(pg) pg.classList.toggle('active',id===p);
+    const nb=document.getElementById('nav-'+id);
+    if(nb) nb.classList.toggle('active',id===p);
+  });
   document.getElementById('ca').scrollTop=0;
-  if(p==='add'){popSelects();document.getElementById('f-date').value=today();document.getElementById('ft-date').value=today();}
+  if(p==='add'){
+    popSelects();
+    document.getElementById('f-date').value=today();
+    document.getElementById('ft-date').value=today();
+  }
   if(p==='log'){renderLog();renderSum();}
   if(p==='analytics')renderA();
   if(p==='accounts')renderAccts();
-  if(p==='statement'){const n2=new Date();const sf=document.getElementById('stmt-from');const st=document.getElementById('stmt-to');if(sf&&!sf._set)sf.value=n2.getFullYear()+'-'+String(n2.getMonth()+1).padStart(2,'0')+'-01';if(st&&!st._set)st.value=today();renderStmt();}
+  if(p==='statement'){
+    const n2=new Date();
+    const sf=document.getElementById('stmt-from');
+    const st=document.getElementById('stmt-to');
+    if(sf && !sf._set) sf.value=n2.getFullYear()+'-'+String(n2.getMonth()+1).padStart(2,'0')+'-01';
+    if(st && !st._set) st.value=today();
+    renderStmt();
+  }
   if(p==='settings')renderSettings();
   if(p==='profile'){renderMembers();loadFamilyInfo();}
 };
@@ -1508,7 +1519,7 @@ function renderLog(){
     if(logFilters.account!=='all'&&e.account!==logFilters.account)return false;
     if(logFilters.month!=='all'&&e.date.slice(5,7)!==logFilters.month)return false;
     if(logFilters.year!=='all'&&e.date.slice(0,4)!==logFilters.year)return false;
-    if(q&&!(e.category+e.account+(e.description||'')+e.date+(getPersonOf(e)||'')).toLowerCase().includes(q))return false;
+    if(q&&!(e.category+e.account+(e.description||'')+e.date+(e.person||'')).toLowerCase().includes(q))return false;
     return true;
   });
   const el=document.getElementById('log-list');
@@ -1522,7 +1533,7 @@ function renderLog(){
       <div class="ei-wrap" data-id="${e.id}">
         <div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div>
         <div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div>
-          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${getPersonOf(e)?' · '+getPersonOf(e):''}</div></div>
+          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${e.person?' · '+e.person:''}</div></div>
           <div class="er"><div class="ea ${e.type}">${e.type==='income'?'+':e.type==='transfer'?'⇄':'−'}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div>
         </div>
       </div>`).join('');
