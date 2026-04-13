@@ -634,7 +634,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.1</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.3</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -890,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.1';
+const APP_VERSION='v15.4.3';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -961,12 +961,24 @@ function entryAllowedForAnalytics(e){
   return true;
 }
 
+
+function getScopedAccounts(){
+  // Accounts in current scope (Business/Personal/Both)
+  return accounts.filter(a=>scopeAllowsAccount(a));
+}
+function getScopedEntries(){
+  // Entries that are allowed by account rules + scope
+  return entries.filter(e=>entryAllowedForAnalytics(e));
+}
 window.setScope=function(scope){
   viewScope=scope||'both';
   try{localStorage.setItem('rf_scope',viewScope);}catch(_){ }
   const sel=document.getElementById('scope-sel');
   if(sel) sel.value=viewScope;
   onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+
 };
 function initScope(){
   try{viewScope=localStorage.getItem('rf_scope')||'both';}catch(_){viewScope='both';}
@@ -1050,7 +1062,7 @@ window.eeFilterAccounts=function(){
   const s=document.getElementById('ee-account');
   const cur=s.dataset.current||'';
   s.innerHTML='<option value="">— select account —</option>';
-  (o?accounts.filter(a=>a.owner===o):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;if(a.name===cur)op.selected=true;s.appendChild(op);});
+  (o?accounts.filter(a=>a.owner===o && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;if(a.name===cur)op.selected=true;s.appendChild(op);});
 };
 window.openEditEntry=function(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
@@ -1298,7 +1310,10 @@ function subscribeToFamily(){
   Object.entries(cols).forEach(([col,setter])=>{
     const unsub=onSnapshot(collection(db,`familyData/${currentFamilyId}/${col}`),snap=>{
       setter(snap.docs.map(d=>({...d.data(),id:d.id})));
-      onDataChange();setSyncStatus('online');
+      onDataChange();
+ if(document.querySelector("#page-log.active")) {renderLog();renderSum();}
+ if(document.querySelector("#page-accounts.active")) {renderAccts();}
+setSyncStatus('online');
     },()=>{});
     unsubscribers.push(unsub);
   });
@@ -1338,25 +1353,25 @@ window.filterAccsByOwner=function(){
   const o=document.getElementById('f-owner').value;
   const s=document.getElementById('f-account');
   s.innerHTML='<option value="">— select account —</option>';
-  (o?accounts.filter(a=>a.owner===o):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});
+  (o?accounts.filter(a=>a.owner===o && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});
 };
 window.filterTransferAccs=function(){
   const fo=document.getElementById('ft-from-owner').value,to=document.getElementById('ft-to-owner').value;
   const fs=document.getElementById('ft-from'),ts=document.getElementById('ft-to');
   fs.innerHTML='<option value="">— select account —</option>';ts.innerHTML='<option value="">— select account —</option>';
-  (fo?accounts.filter(a=>a.owner===fo):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;fs.appendChild(op);});
-  (to?accounts.filter(a=>a.owner===to):accounts).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;ts.appendChild(op);});
+  (fo?accounts.filter(a=>a.owner===fo && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;fs.appendChild(op);});
+  (to?accounts.filter(a=>a.owner===to && !a.disabled && scopeAllowsAccount(a)):accounts.filter(a=>!a.disabled && scopeAllowsAccount(a))).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;ts.appendChild(op);});
 };
 function popSelects(){
   ['f-owner','ft-from-owner','ft-to-owner'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='<option value="">— select —</option>';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;s.appendChild(op);});if(cur)s.value=cur;});
   filterAccsByOwner();filterTransferAccs();
-  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name);if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
+  const sa=document.getElementById('stmt-acct');if(sa){const cur=sa.value;sa.innerHTML='<option value="">— select account —</option>';owners.forEach(o=>{const oa=accounts.filter(a=>a.owner===o.name && scopeAllowsAccount(a));if(!oa.length)return;const og=document.createElement('optgroup');og.label=o.name;oa.forEach(a=>{const op=document.createElement('option');op.value=a.name+'|||'+a.owner;op.textContent=a.name;og.appendChild(op);});sa.appendChild(og);});if(cur)sa.value=cur;}
   const cs=document.getElementById('f-category');if(cs){const cur=cs.value;cs.innerHTML='<option value="">— select —</option>';categories.forEach(c=>{const op=document.createElement('option');op.value=c.name;op.textContent=c.name;cs.appendChild(op);});if(cur)cs.value=cur;}
   const mo=document.getElementById('ma-owner');if(mo){const cur=mo.value;mo.innerHTML='';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;mo.appendChild(op);});if(cur)mo.value=cur;}
   const mt=document.getElementById('ma-type');if(mt){const cur=mt.value;mt.innerHTML='';acctTypes.forEach(t=>{const op=document.createElement('option');op.value=t.id;op.textContent=t.icon+' '+t.name;mt.appendChild(op);});if(cur)mt.value=cur;}
   ['new-cat-grp','ec-grp'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='';groups.forEach(g=>{const op=document.createElement('option');op.value=g.name;op.textContent=g.name;s.appendChild(op);});if(cur)s.value=cur;});
   ['ov-person','pv-person','grp-person'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';owners.forEach(o=>{const op=document.createElement('option');op.value=o.name;op.textContent=o.name;s.appendChild(op);});s.value=cur;});
-  ['ov-account','grp-account'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';accounts.forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});s.value=cur;});
+  ['ov-account','grp-account'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';accounts.filter(a=>!a.disabled && scopeAllowsAccount(a)).forEach(a=>{const op=document.createElement('option');op.value=a.name;op.textContent=a.name;s.appendChild(op);});s.value=cur;});
   const years=[...new Set(entries.map(e=>e.date.slice(0,4)))].sort().reverse();
   ['ov-year','pv-year'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const cur=s.value||'all';s.innerHTML='<option value="all">All</option>';years.forEach(y=>{const op=document.createElement('option');op.value=y;op.textContent=y;s.appendChild(op);});s.value=cur;});
   const months=[...new Set(entries.map(e=>mk(e.date)))].sort().reverse();
@@ -1370,7 +1385,7 @@ function updateLogFilters(){
   owners.forEach(o=>{pc.innerHTML+=`<button class="chip${curP===o.name?' on':''}" onclick="setLFC('person','${o.name}',this,'lf-person')">${o.name}</button>`;});
   const ac2=document.getElementById('lf-account');if(!ac2)return;
   const curA=logFilters.account;ac2.innerHTML=`<button class="chip${curA==='all'?' on':''}" onclick="setLFC('account','all',this,'lf-account')">All</button>`;
-  accounts.forEach(a=>{ac2.innerHTML+=`<button class="chip${curA===a.name?' on':''}" onclick="setLFC('account','${a.name.replace(/'/g,"\\'")}',this,'lf-account')">${a.name}</button>`;});
+  getScopedAccounts().filter(a=>!a.disabled).forEach(a=>{ac2.innerHTML+=`<button class="chip${curA===a.name?' on':''}" onclick="setLFC('account','${a.name.replace(/'/g,"\\'")}',this,'lf-account')">${a.name}</button>`;});
   const aft=document.getElementById('af-type');if(!aft)return;
   aft.innerHTML=`<button class="chip${afType==='all'?' on':''}" onclick="setAF('type','all',this,'af-type')">All</button>`;
   acctTypes.forEach(t=>{aft.innerHTML+=`<button class="chip${afType===t.id?' on':''}" onclick="setAF('type','${t.id}',this,'af-type')">${t.icon} ${t.name}</button>`;});
@@ -1452,17 +1467,18 @@ window.addTransfer=async function(){
 // ── Log ──
 window.setLFC=function(key,val,el,gid){logFilters[key]=val;document.querySelectorAll('#'+gid+' .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderLog();};
 function renderSum(){
-  const inc=entries.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
-  const exp=entries.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);
+ const base=getScopedEntries();
+ const inc=base.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+ const exp=base.filter(e=>e.type==='expense').reduce((s,e)=>s+Math.abs(e.amount),0);
   const net=inc-exp;
   document.getElementById('sum-inc').textContent=fmt(inc);document.getElementById('sum-exp').textContent=fmt(exp);
   const ne=document.getElementById('sum-net');ne.textContent=fmt(net,true);ne.className='stat-value '+(net>=0?'sv-inc':'sv-exp');
 }
 function renderLog(){
   const q=(document.getElementById('log-search').value||'').toLowerCase();
-  let f=entries.filter(e=>{
+  let f=getScopedEntries().filter(e=>{
     if(logFilters.type!=='all'&&e.type!==logFilters.type)return false;
-    if(logFilters.person!=='all'&&e.person!==logFilters.person)return false;
+    if(logFilters.person!=='all'&&getPersonOf(e)!==logFilters.person)return false;
     if(logFilters.account!=='all'&&e.account!==logFilters.account)return false;
     if(logFilters.month!=='all'&&e.date.slice(5,7)!==logFilters.month)return false;
     if(logFilters.year!=='all'&&e.date.slice(0,4)!==logFilters.year)return false;
@@ -1480,7 +1496,7 @@ function renderLog(){
       <div class="ei-wrap" data-id="${e.id}">
         <div class="ei-swipe-bg"><div class="ei-swipe-del">🗑️</div></div>
         <div class="ei"><div class="eicon eicon-${e.type}">${getEntryIcon(e.category,e.type)}</div>
-          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${e.person?' · '+e.person:''}</div></div>
+          <div class="eb"><div class="ec">${e.category}</div><div class="em">${e.account}${e.description?' · '+e.description:''}${getPersonOf(e)?' · '+getPersonOf(e):''}</div></div>
           <div class="er"><div class="ea ${e.type}">${e.type==='income'?'+':e.type==='transfer'?'⇄':'−'}${fmt(e.amount)}</div><div class="e-actions"><button class="edit-icon" onclick="openEditEntry('${e.id}')">✏️</button><button class="del" onclick="delEntry('${e.id}')">×</button></div></div>
         </div>
       </div>`).join('');
@@ -1644,7 +1660,7 @@ function renderGroupA(){
   }).join('');
 }
 function renderCreditA(){
-  const creditAccts=accounts.filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
+  const creditAccts=accounts.filter(a=>scopeAllowsAccount(a) && !a.disabled).filter(a=>{const at=getAcctType(a.type);return at.isCredit&&a.limit>0;});
   const oBal=a=>a.openingBalance+entries.filter(e=>e.account===a.name).reduce((s,e)=>s+e.amount,0);
   const ownerNames=[...new Set(owners.map(o=>o.name))];
   document.getElementById('credit-owner-cards').innerHTML=ownerNames.map(owner=>{
@@ -1666,7 +1682,7 @@ function acctBal(a){return a.openingBalance+entries.filter(e=>e.account===a.name
 window.setAF=function(key,val,el,gid){if(key==='type')afType=val;else afOwner=val;document.querySelectorAll('#'+gid+' .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderAccts();};
 window.setASort=function(v,el){afSort=v;document.querySelectorAll('#af-sort .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderAccts();};
 function renderAccts(){
-  let accts=accounts.filter(a=>(afType==='all'||a.type===afType)&&(afOwner==='all'||a.owner===afOwner));
+ let accts=getScopedAccounts().filter(a=>(afType==='all'||a.type===afType)&&(afOwner==='all'||a.owner===afOwner));
   if(afSort==='balance-desc')accts=[...accts].sort((a,b)=>acctBal(b)-acctBal(a));
   else if(afSort==='balance-asc')accts=[...accts].sort((a,b)=>acctBal(a)-acctBal(b));
   else if(afSort==='type')accts=[...accts].sort((a,b)=>a.type.localeCompare(b.type));
