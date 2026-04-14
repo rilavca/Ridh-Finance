@@ -672,9 +672,6 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
       <div class="stab-page active" id="sp-data">
         <div class="sec-title" style="margin-top:.5rem">Owners</div>
         <div class="card" id="owners-list"></div>
-  <div class="sec-title" style="margin-top:1rem">Accounts order</div>
-  <div class="card" id="acct-order-settings"></div>
-  <div style="font-size:12px;color:var(--muted);margin:0 0 1rem">Use ↑ ↓ to reorder accounts for dropdowns & analytics filters.</div>
         <div style="display:flex;gap:8px;margin-bottom:1.25rem"><input type="text" id="new-owner" placeholder="New owner name" style="flex:1;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;border:1px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text)"><button class="btn-o" onclick="addOwner()">Add</button></div>
       </div>
       <div class="stab-page" id="sp-cats">
@@ -893,7 +890,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.5-reorder';
+const APP_VERSION='v15.4.5.5-reorder2';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -1013,7 +1010,6 @@ window.moveOrder = function(col, id, dir){
     await fsSet(col, a.id, { ...a, order: bo });
     await fsSet(col, b.id, { ...b, order: ao });
 
-    if(document.querySelector('#page-settings.active')) renderSettings();
     onDataChange();
   })().catch(()=>toast('Reorder failed'));
 };
@@ -1854,6 +1850,7 @@ window.setAF=function(key,val,el,gid){if(key==='type')afType=val;else afOwner=va
 window.setASort=function(v,el){afSort=v;document.querySelectorAll('#af-sort .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderAccts();};
 function renderAccts(){
  let accts=getScopedAccounts().filter(a=>(afType==='all'||a.type===afType)&&(afOwner==='all'||a.owner===afOwner));
+  accts = sortAccounts(accts);
   if(afSort==='balance-desc')accts=[...accts].sort((a,b)=>acctBal(b)-acctBal(a));
   else if(afSort==='balance-asc')accts=[...accts].sort((a,b)=>acctBal(a)-acctBal(b));
   else if(afSort==='type')accts=[...accts].sort((a,b)=>a.type.localeCompare(b.type));
@@ -1876,7 +1873,7 @@ function acctCard(a){
   const badgeMap={chequing:'bchq',savings:'bsav',credit:'bcrd',loc:'bloc',investment:'binv'};
   return`<div class="ac${a.disabled?' disabled':''}"><div class="ac-hdr"><div style="display:flex;align-items:center;flex:1;min-width:0"><div class="ac-icon" style="background:var(--bg3)">${at.icon||'🏦'}</div><div class="ac-info"><div class="ac-name">${a.name}</div><div class="ac-owner-lbl">${a.owner}</div></div></div><span class="badge ${badgeMap[a.type]||'both2'}">${at.name}</span>${a.disabled?`<span class="badge2 bdis">Disabled</span>`:''}${(!a.disabled && a.excludeNetWorth)?`<span class="badge2 bex">No NW</span>`:''}${(!a.disabled && a.excludeAnalytics)?`<span class="badge2 bex">No IE</span>`:''}${a.isBusiness?`<span class="badge2 bbiz">Biz</span>`:''}</div>
     <div class="ac-bal" style="color:${bc}">${fmt(bal)}</div>${uBar}
-    <div class="ac-actions"><button class="btn-sm" onclick="openEditAcct('${a.id}')">✏️ Edit</button><button class="btn-sm" onclick="stmtForAcct('${a.name.replace(/'/g,"\\'")}')">📄 Statement</button><button class="btn-sm" style="color:var(--exp)" onclick="delAcct('${a.id}')">🗑️ Delete</button></div></div>`;
+    <div class="ac-actions"><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',1)">↓</button><button class="btn-sm" onclick="openEditAcct('${a.id}')">✏️ Edit</button><button class="btn-sm" onclick="stmtForAcct('${a.name.replace(/'/g,"\\'")}')">📄 Statement</button><button class="btn-sm" style="color:var(--exp)" onclick="delAcct('${a.id}')">🗑️ Delete</button></div></div>`;
 }
 window.stmtForAcct=function(name,owner){goPage('statement');setTimeout(()=>{document.getElementById('stmt-acct').value=owner?name+'|||'+owner:name;renderStmt();},80);};
 window.openAddAcct=function(){editAcctId=null;document.getElementById('mo-acct-title').textContent='Add account';['ma-name','ma-bal','ma-lim'].forEach(id=>document.getElementById(id).value='');['ma-disabled','ma-exnw','ma-exan','ma-biz'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});toggleLF();document.getElementById('mo-acct').classList.add('open');};
@@ -1936,30 +1933,39 @@ window.renderStmt=function(){
 };
 
 // ── Settings ──
-function renderSettings(){renderOwners();renderAcctOrderSettings();renderGrpSettings();renderCatSettings();renderAcctTypesSettings();}
-function renderOwners(){document.getElementById('owners-list').innerHTML=owners.map((o,i)=>`<div class="li-row"><div><div class="li-name">${o.name}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditOwner(${i})">Edit</button><button class="del" onclick="delOwner('${o.id}')">×</button></div></div>`).join('');}
+function renderSettings(){renderOwners();renderGrpSettings();renderCatSettings();renderAcctTypesSettings();}
 
-function renderAcctOrderSettings(){
-  const el=document.getElementById('acct-order-settings');
+function renderOwners(){
+  const el=document.getElementById('owners-list');
   if(!el) return;
-  const accts=sortAccounts(getScopedAccounts().filter(a=>!a.disabled));
-  if(!accts.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">No accounts</div>';return;}
-  const by={};
-  accts.forEach(a=>{ if(!by[a.owner]) by[a.owner]=[]; by[a.owner].push(a); });
-  const ownerList=sortOwners(owners).map(o=>o.name);
-  const ownersIn=[...new Set(accts.map(a=>a.owner))].sort((a,b)=>ownerOrder(a)-ownerOrder(b) || a.localeCompare(b));
-  const orderedOwners=[...new Set([...ownerList, ...ownersIn])];
-  el.innerHTML=orderedOwners.map(owner=>{
-    const list=by[owner]||[];
-    if(!list.length) return '';
-    return `<div style="padding:.4rem 0 .2rem;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${owner}</div>`+
-      list.map(a=>`<div class="li-row"><div><div class="li-name">${a.name}</div><div class="li-meta">${getAcctType(a.type).name}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',1)">↓</button></div></div>`).join('');
-  }).join('');
+  const list=sortOwners(owners);
+  el.innerHTML=list.map((o,i)=>`<div class="li-row"><div><div class="li-name">${o.name}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('owners','${o.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('owners','${o.id}',1)">↓</button><button class="btn-sm" onclick="openEditOwner(${i})">Edit</button><button class="del" onclick="delOwner('${o.id}')">×</button></div></div>`).join('');
 }
 
-function renderGrpSettings(){document.getElementById('grp-list-settings').innerHTML=groups.map((g,i)=>`<div class="li-row"><div><div class="li-name">${g.name}</div><div class="li-meta">${g.type}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditGrp(${i})">Edit</button><button class="del" onclick="delGrp('${g.id}')">×</button></div></div>`).join('');}
-function renderCatSettings(){document.getElementById('cat-list-settings').innerHTML=categories.map((c,i)=>`<div class="li-row"><div><div class="li-name">${c.name}</div><div class="li-meta">${c.group||'—'} · ${c.type||'—'}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditCat(${i})">Edit</button><button class="del" onclick="delCat('${c.id||c.name}')">×</button></div></div>`).join('');}
-function renderAcctTypesSettings(){document.getElementById('acct-types-list').innerHTML=acctTypes.map((t,i)=>`<div class="li-row"><div><div class="li-name">${t.icon||''} ${t.name}</div><div class="li-meta">${t.isCredit?'Credit/LOC':'Non-credit'}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditAcctType(${i})">Edit</button><button class="del" onclick="delAcctType('${t.id}')">×</button></div></div>`).join('');}
+
+function renderGrpSettings(){
+  const el=document.getElementById('grp-list-settings');
+  if(!el) return;
+  const list=sortGroups(groups);
+  el.innerHTML=list.map((g,i)=>`<div class="li-row"><div><div class="li-name">${g.name}</div><div class="li-meta">${g.type}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('groups','${g.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('groups','${g.id}',1)">↓</button><button class="btn-sm" onclick="openEditGrp(${i})">Edit</button><button class="del" onclick="delGrp('${g.id}')">×</button></div></div>`).join('');
+}
+
+function renderCatSettings{document.getElementById('grp-list-settings').innerHTML=groups.map((g,i)=>`<div class="li-row"><div><div class="li-name">${g.name}</div><div class="li-meta">${g.type}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditGrp(${i})">Edit</button><button class="del" onclick="delGrp('${g.id}')">×</button></div></div>`).join('');}
+
+function renderCatSettings(){
+  const el=document.getElementById('cat-list-settings');
+  if(!el) return;
+  const list=sortCategories(categories);
+  el.innerHTML=list.map((c,i)=>`<div class="li-row"><div><div class="li-name">${c.name}</div><div class="li-meta">${c.group||'—'} · ${c.type||'—'}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('categories','${c.id||c.name}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('categories','${c.id||c.name}',1)">↓</button><button class="btn-sm" onclick="openEditCat(${i})">Edit</button><button class="del" onclick="delCat('${c.id||c.name}')">×</button></div></div>`).join('');
+}
+
+
+function renderAcctTypesSettings(){
+  const el=document.getElementById('acct-types-list');
+  if(!el) return;
+  const list=sortAcctTypes(acctTypes);
+  el.innerHTML=list.map((t,i)=>`<div class="li-row"><div><div class="li-name">${t.icon||''} ${t.name}</div><div class="li-meta">${t.isCredit?'Credit/LOC':'Non-credit'}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('acctTypes','${t.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('acctTypes','${t.id}',1)">↓</button><button class="btn-sm" onclick="openEditAcctType(${i})">Edit</button><button class="del" onclick="delAcctType('${t.id}')">×</button></div></div>`).join('');
+}
 
 window.addOwner=async function(){const v=document.getElementById('new-owner').value.trim();if(!v)return;await fsSet('owners','o'+Date.now(),{id:'o'+Date.now(),name:v,order:nextOrder(owners)});document.getElementById('new-owner').value='';toast('Owner added');};
 window.openEditOwner=function(i){editOwnerIdx=i;document.getElementById('eo-name').value=owners[i].name;document.getElementById('mo-edit-owner').classList.add('open');};
