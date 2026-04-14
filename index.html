@@ -913,7 +913,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.5-reorder-safe-bygroup-compare-catupbtn';
+const APP_VERSION='v15.4.5.5-reorder-safe-bygroup-compare-catmovefinal';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -962,11 +962,12 @@ function sortAcctTypes(arr){ return (arr||[]).slice().sort((a,b)=>{
   return String(a.name||'').localeCompare(String(b.name||''));
 }); }
 function sortCategories(arr){
+  // ✅ Global category order: categories can move across groups
   return (arr||[]).slice().sort((a,b)=>{
-    const dg = groupOrder(a.group||'') - groupOrder(b.group||'');
-    if(dg!==0) return dg;
     const d = ord(a) - ord(b);
     if(d!==0) return d;
+    const gd = String(a.group||'').localeCompare(String(b.group||''));
+    if(gd!==0) return gd;
     return String(a.name||'').localeCompare(String(b.name||''));
   });
 }
@@ -993,7 +994,13 @@ async function initOrderForCol(col){
   else return;
 
   if(!arr.length) return;
-  if(arr.every(x=>typeof x.order==='number')) return;
+
+  // Normalize if missing OR duplicate order values
+  const orders = arr.map(x => (typeof x.order === 'number') ? x.order : null);
+  const hasMissing = orders.some(o => o === null);
+  const nonNull = orders.filter(o => o !== null);
+  const hasDup = (new Set(nonNull)).size !== nonNull.length;
+  if(!hasMissing && !hasDup) return;
 
   const sorted = arr.slice().sort((a,b)=>{
     const d = ord(a)-ord(b);
@@ -1004,40 +1011,44 @@ async function initOrderForCol(col){
   const batch = writeBatch(db);
   sorted.forEach((item,i)=>{
     const order = i*10;
-    const id = String(item.id);
+    const id = String(item.id ?? item.name);
     batch.set(doc(db, `familyData/${currentFamilyId}/${col}`, id), { ...item, id, order });
   });
   await batch.commit();
 }
 
 window.moveOrder = function(col, id, dir){
-  (async()=>{
-    if(!currentFamilyId) return;
-    await initOrderForCol(col);
+ (async()=>{
+  if(!currentFamilyId) return;
+  await initOrderForCol(col);
 
-    let arr = [];
-    if(col==='owners') arr = sortOwners(owners);
-    else if(col==='groups') arr = sortGroups(groups);
-    else if(col==='categories') arr = sortCategories(categories);
-    else if(col==='acctTypes') arr = sortAcctTypes(acctTypes);
-    else if(col==='accounts') arr = sortAccounts(accounts);
-    else return;
+  let arr = [];
+  if(col==='owners') arr = sortOwners(owners);
+  else if(col==='groups') arr = sortGroups(groups);
+  else if(col==='categories') arr = sortCategories(categories);
+  else if(col==='acctTypes') arr = sortAcctTypes(acctTypes);
+  else if(col==='accounts') arr = sortAccounts(accounts);
+  else return;
 
-    const idx = arr.findIndex(x=>String(x.id)===String(id));
-    if(idx<0) return;
-    const j = idx + (dir<0?-1:1);
-    if(j<0 || j>=arr.length) return;
+  const key = (x)=>String(x.id ?? x.name);
+  const idx = arr.findIndex(x=>key(x)===String(id));
+  if(idx<0) return;
+  const j = idx + (dir<0?-1:1);
+  if(j<0 || j>=arr.length) return;
 
-    const a = arr[idx];
-    const b = arr[j];
-    const ao = (typeof a.order==='number') ? a.order : idx*10;
-    const bo = (typeof b.order==='number') ? b.order : j*10;
+  const a = arr[idx];
+  const b = arr[j];
+  const ao = (typeof a.order==='number') ? a.order : idx*10;
+  const bo = (typeof b.order==='number') ? b.order : j*10;
 
-    await fsSet(col, a.id, { ...a, order: bo });
-    await fsSet(col, b.id, { ...b, order: ao });
+  const aid = key(a);
+  const bid = key(b);
 
-    onDataChange();
-  })().catch(()=>toast('Reorder failed'));
+  await fsSet(col, aid, { ...a, id: aid, order: bo });
+  await fsSet(col, bid, { ...b, id: bid, order: ao });
+
+  onDataChange();
+ })().catch(()=>toast('Reorder failed'));
 };
 
 
@@ -1047,10 +1058,10 @@ function ensureCatMultiSelect(selectId, selectedArr, onChangeFn){
   if(!sel) return;
 
   const cats = (categories||[]).slice().sort((a,b)=>{
-  const dg = groupOrder(a.group||'') - groupOrder(b.group||'');
-  if(dg!==0) return dg;
   const d = ord(a) - ord(b);
   if(d!==0) return d;
+  const gd = String(a.group||'').localeCompare(String(b.group||''));
+  if(gd!==0) return gd;
   return (a.name||'').localeCompare(b.name||'');
 });
 
@@ -2205,8 +2216,8 @@ function renderGrpSettings(){const el=document.getElementById('grp-list-settings
 function renderCatSettings(){
   const el=document.getElementById('cat-list-settings');
   if(!el) return;
-  const list = sortCategories(categories);
-  el.innerHTML = list.map((c,i)=>`<div class="li-row">
+  const list=sortCategories(categories);
+  el.innerHTML=list.map((c,i)=>`<div class="li-row">
     <div>
       <div class="li-name">${c.name}</div>
       <div class="li-meta">${(c.group||'—')} · ${(c.type||'—')}</div>
