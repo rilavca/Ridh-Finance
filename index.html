@@ -215,10 +215,12 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
 .ll-val{font-weight:700;font-size:11px}
 
 
-/* ── Donut legend mini bars ── */
-.mini-bar{width:72px;height:6px;border-radius:6px;background:var(--bg3);overflow:hidden;flex-shrink:0;margin-left:8px;border:1px solid var(--border)}
+/* ── Donut legend mini bars + compare ── */
+.mini-bar{width:72px;height:6px;border-radius:6px;background:var(--bg3);overflow:hidden;flex-shrink:0;margin-left:6px;border:1px solid var(--border)}
 .mini-fill{height:100%;border-radius:6px}
 .li2{gap:8px}
+.li2 .subval{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap}
+.li2 .delta{font-size:11px;font-weight:700;margin-left:6px;white-space:nowrap}
 /* PIVOT */
 .pivot-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -1.25rem;padding:0 1.25rem}
 .pt{border-collapse:collapse;font-size:12px;min-width:100%}
@@ -597,12 +599,17 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
 <div class="sec" style="padding-top:0">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:.5rem">
     <div class="sec-title" style="margin:0">Category breakdown</div>
-    <button class="btn-sm" id="grp-donut-reset" onclick="resetGrpDonut()" style="display:none">Reset</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="chip on" id="grp-comp-off" onclick="setGrpCompare(false)" style="padding:4px 9px">Current</button>
+      <button class="chip" id="grp-comp-on" onclick="setGrpCompare(true)" style="padding:4px 9px">Compare</button>
+      <button class="btn-sm" id="grp-donut-reset" onclick="resetGrpDonut()" style="display:none">Reset</button>
+    </div>
   </div>
   <div class="ds">
     <div class="dw"><canvas id="chart-grp-donut"></canvas></div>
     <div class="ll" id="grp-donut-legend"></div>
   </div>
+  <div class="mini-hint" id="grp-comp-hint" style="margin-top:6px">Compare shows current (outer ring) vs previous month (inner ring). Tap a group bar to drill.</div>
 </div>
 <div id="grp-drill" style="margin-top:1rem"></div></div>
       </div>
@@ -650,7 +657,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
         <div class="card" style="display:flex;align-items:center;gap:12px">
           <div class="member-av" id="profile-av" style="width:50px;height:50px;font-size:18px">R</div>
           <div style="flex:1"><div class="member-name" id="profile-name">Loading…</div><div class="member-email" id="profile-email"></div>
-              <div class="member-email" style="margin-top:2px">Build v15.4.8</div></div>
+              <div class="member-email" style="margin-top:2px">Build v15.4.9</div></div>
         </div>
         <button class="btn-d" style="width:100%;margin-top:.5rem" onclick="doSignOut()">Sign Out</button>
       </div>
@@ -906,7 +913,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.5-reorder-safe-donutlegend2';
+const APP_VERSION='v15.4.5.5-reorder-safe-bygroup-compare';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -923,6 +930,7 @@ let aTab='overview';
 let expandedPivot={};
 let momChart=null,donutChart=null,groupChart=null,grpDonutChart=null,nwChart=null;
 let grpDonutGroup=null;
+let grpDonutCompare=false;
 const GRP_DONUT_TOPN=10;
 
 let ovCatsSel=[], pvCatsSel=[], grpCatsSel=[];
@@ -1820,104 +1828,254 @@ function renderPivot(){
   document.getElementById('pivot-table').innerHTML=html;
 }
 window.togglePG=function(g){expandedPivot[g]=!expandedPivot[g];renderPivot();};
+
+window.resetGrpDonut=function(){ grpDonutGroup=null; renderGroupA(); };
+window.setGrpCompare=function(on){
+  grpDonutCompare=!!on;
+  const b0=document.getElementById('grp-comp-off');
+  const b1=document.getElementById('grp-comp-on');
+  if(b0&&b1){b0.classList.toggle('on',!grpDonutCompare);b1.classList.toggle('on',grpDonutCompare);}
+  renderGroupA();
+};
+
 function renderGroupA(){
   // ✅ Always populate Group categories
   ensureCatMultiSelect('grp-cats', grpCatsSel, (vals)=>{ grpCatsSel = vals; renderGroupA(); });
 
-  const month=document.getElementById('grp-month').value,gtype=document.getElementById('grp-type').value||'expense',gp=document.getElementById('grp-person').value||'all',ga=document.getElementById('grp-account').value||'all';
-  if(!month)return;
+  const month=document.getElementById('grp-month').value,
+        gtype=document.getElementById('grp-type').value||'expense',
+        gp=document.getElementById('grp-person').value||'all',
+        ga=document.getElementById('grp-account').value||'all';
+  if(!month) return;
+
+  // buttons state
+  const b0=document.getElementById('grp-comp-off');
+  const b1=document.getElementById('grp-comp-on');
+  if(b0&&b1){b0.classList.toggle('on',!grpDonutCompare);b1.classList.toggle('on',grpDonutCompare);}
+
   let fe=filteredEntries({month,person:gp,account:ga}).filter(e=>e.type===gtype);
-  // ✅ Apply category filter (multi-select)
   if(Array.isArray(grpCatsSel) && grpCatsSel.length) fe = fe.filter(e=>grpCatsSel.includes(e.category));
-  renderGroupDonut(fe,gtype);
-  const gd={};fe.forEach(e=>{const g=getCat(e.category).group||'Other';gd[g]=(gd[g]||0)+Math.abs(e.amount);});
+
+  const pm = prevMonthKey(month);
+  let pe = pm ? filteredEntries({month:pm,person:gp,account:ga}).filter(e=>e.type===gtype) : [];
+  if(Array.isArray(grpCatsSel) && grpCatsSel.length) pe = pe.filter(e=>grpCatsSel.includes(e.category));
+
+  // Group totals (current)
+  const gd={};
+  fe.forEach(e=>{
+    const g=getCat(e.category).group||'Other';
+    const v = (gtype==='expense') ? Math.abs(e.amount) : e.amount;
+    gd[g]=(gd[g]||0)+v;
+  });
   const sorted=Object.entries(gd).sort((a,b)=>b[1]-a[1]);
-  if(groupChart)groupChart.destroy();
-  if(!sorted.length){document.getElementById('grp-drill').innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>No data</p></div>';return;}
-  groupChart=new Chart(document.getElementById('chart-groups').getContext('2d'),{type:'bar',data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:sorted.map((_,i)=>CC[i%CC.length]+'CC'),borderRadius:5,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)},bodyFont:{family:'Inter'}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10},callback:v=>fmts(v)}},y:{grid:{display:false},ticks:{color:'#8B8FA8',font:{family:'Inter',size:11}}}}}});
+
+  // If selected group disappears after filters, reset
+  if(grpDonutGroup && !gd[grpDonutGroup]) grpDonutGroup=null;
+
+  // Donut compare
+  renderGroupDonut(fe, pe, gtype, month);
+
+  if(groupChart) groupChart.destroy();
+  if(!sorted.length){
+    const drill=document.getElementById('grp-drill');
+    if(drill) drill.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>No data</p></div>';
+    return;
+  }
+
+  groupChart=new Chart(document.getElementById('chart-groups').getContext('2d'),{
+    type:'bar',
+    data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:sorted.map((_,i)=>CC[i%CC.length]+'CC'),borderRadius:5,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)},bodyFont:{family:'Inter'}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8B8FA8',font:{family:'Inter',size:10},callback:v=>fmts(v)}},y:{grid:{display:false},ticks:{color:'#8B8FA8',font:{family:'Inter',size:11}}}},
+      onClick:(evt,elements)=>{
+        if(!elements || !elements.length) return;
+        const i = elements[0].index;
+        const g = sorted[i][0];
+        grpDonutGroup = (grpDonutGroup===g) ? null : g;
+        renderGroupA();
+      }
+    }
+  });
+
+  // Drill list
   const totalAll=sorted.reduce((s,v)=>s+v[1],0);
-  document.getElementById('grp-drill').innerHTML=sorted.map((x,i)=>{
-    const cats={};fe.filter(e=>getCat(e.category).group===x[0]).forEach(e=>{cats[e.category]=(cats[e.category]||0)+Math.abs(e.amount);});
-    const cs=Object.entries(cats).sort((a,b)=>b[1]-a[1]);const pct=totalAll>0?Math.round(x[1]/totalAll*100):0;
-    return`<div style="margin-bottom:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:.85rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem"><div style="display:flex;align-items:center;gap:7px"><div style="width:9px;height:9px;border-radius:50%;background:${CC[i%CC.length]}"></div><span style="font-size:13px;font-weight:700">${x[0]}</span></div><span style="font-size:13px;font-weight:700">${fmt(x[1])} <span style="color:var(--muted);font-weight:400;font-size:11px">${pct}%</span></span></div>
+  const drill=document.getElementById('grp-drill');
+  if(!drill) return;
+  drill.innerHTML=sorted.map((x,i)=>{
+    const cats={};
+    fe.filter(e=>getCat(e.category).group===x[0]).forEach(e=>{
+      const v = (gtype==='expense') ? Math.abs(e.amount) : e.amount;
+      cats[e.category]=(cats[e.category]||0)+v;
+    });
+    const cs=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+    const pct=totalAll>0?Math.round(x[1]/totalAll*100):0;
+    const active=(grpDonutGroup===x[0]);
+    return `<div style="margin-bottom:.75rem;background:var(--surface);border:1px solid ${active?'var(--blue-border)':'var(--border)'};border-radius:var(--r-lg);padding:.85rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:9px;height:9px;border-radius:50%;background:${CC[i%CC.length]}"></div>
+          <span style="font-size:13px;font-weight:800">${x[0]}</span>
+          ${active?'<span class="badge2" style="background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)">Donut</span>':''}
+        </div>
+        <span style="font-size:13px;font-weight:800">${fmt(x[1])} <span style="color:var(--muted);font-weight:400;font-size:11px">${pct}%</span></span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.5rem">
+        <button class="btn-sm" onclick="(function(){grpDonutGroup=(grpDonutGroup==='${x[0].replace(/'/g,"\\'")}')?null:'${x[0].replace(/'/g,"\\'")}';renderGroupA();})()">${active?'Show all groups':'Show in donut'}</button>
+      </div>
       ${cs.map(c=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:4px 0 4px 16px;border-top:1px solid var(--border)"><span>${c[0]}</span><span style="font-weight:600">${fmt(c[1])}</span></div>`).join('')}
     </div>`;
   }).join('');
 }
 
-function renderGroupDonut(fe,gtype){
+
+function prevMonthKey(mk){
+  // mk: YYYY-MM
+  if(!mk || mk.length<7) return null;
+  const y = parseInt(mk.slice(0,4),10);
+  const m = parseInt(mk.slice(5,7),10);
+  if(!y || !m) return null;
+  const d = new Date(y, m-1, 1);
+  d.setMonth(d.getMonth()-1);
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${yy}-${mm}`;
+}
+
+function renderGroupDonut(currentFe, prevFe, gtype, monthKey){
   const canvas=document.getElementById('chart-grp-donut');
   const legend=document.getElementById('grp-donut-legend');
   const resetBtn=document.getElementById('grp-donut-reset');
+  const hint=document.getElementById('grp-comp-hint');
   if(!canvas || !legend) return;
 
-  // If a group is selected, filter to that group
-  const scoped = grpDonutGroup ? fe.filter(e=>getCat(e.category).group===grpDonutGroup) : fe;
+  // Drill: if a group is selected, filter both months to that group
+  const cur = grpDonutGroup ? currentFe.filter(e=>getCat(e.category).group===grpDonutGroup) : currentFe;
+  const prv = grpDonutGroup ? prevFe.filter(e=>getCat(e.category).group===grpDonutGroup) : prevFe;
 
-  const totals={};
-  scoped.forEach(e=>{
-    const v = (gtype==='expense') ? Math.abs(e.amount) : e.amount;
-    if(!v) return;
-    totals[e.category]=(totals[e.category]||0)+v;
-  });
+  // Aggregate totals
+  const sumMap=(arr)=>{
+    const t={};
+    arr.forEach(e=>{
+      const v = (gtype==='expense') ? Math.abs(e.amount) : e.amount;
+      if(!v) return;
+      t[e.category]=(t[e.category]||0)+v;
+    });
+    return t;
+  };
+  const curTotals = sumMap(cur);
+  const prvTotals = sumMap(prv);
 
-  const entriesArr = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
-  if(!entriesArr.length){
+  const curArr = Object.entries(curTotals).sort((a,b)=>b[1]-a[1]);
+  if(!curArr.length){
     if(grpDonutChart){grpDonutChart.destroy();grpDonutChart=null;}
     legend.innerHTML='<div style="font-size:12px;color:var(--muted)">No data</div>';
     if(resetBtn) resetBtn.style.display = grpDonutGroup ? 'inline-flex' : 'none';
+    if(hint) hint.style.display='none';
     return;
   }
 
-  const top = entriesArr.slice(0, GRP_DONUT_TOPN);
-  const rest = entriesArr.slice(GRP_DONUT_TOPN);
-  const otherSum = rest.reduce((s,x)=>s+x[1],0);
+  const top = curArr.slice(0, GRP_DONUT_TOPN);
+  const rest = curArr.slice(GRP_DONUT_TOPN);
+  const otherCur = rest.reduce((s,x)=>s+x[1],0);
 
   const labels = top.map(x=>x[0]);
-  const values = top.map(x=>x[1]);
-  if(otherSum>0){ labels.push('Other'); values.push(otherSum); }
+  const curVals = top.map(x=>x[1]);
+
+  // Previous values aligned to labels
+  const prvVals = labels.map(lbl => (prvTotals[lbl]||0));
+
+  // Other bucket
+  const otherPrv = Object.entries(prvTotals)
+    .filter(([k,_])=>!labels.includes(k))
+    .reduce((s,kv)=>s+kv[1],0);
+
+  if(otherCur>0 || otherPrv>0){
+    labels.push('Other');
+    curVals.push(otherCur);
+    prvVals.push(otherPrv);
+  }
 
   const colors = labels.map((lbl,i)=> (lbl==='Other' ? 'rgba(139,143,168,0.65)' : (CC[i%CC.length] || '#6366F1')));
-  const total = values.reduce((s,v)=>s+v,0);
-  const maxV = Math.max(...values);
+  const totalCur = curVals.reduce((s,v)=>s+v,0);
+  const totalPrv = prvVals.reduce((s,v)=>s+v,0);
+  const maxCur = Math.max(...curVals);
+
+  // Build datasets
+  const dsCurrent = { label:'Current', data:curVals, backgroundColor:colors, borderWidth:0, hoverOffset:6, weight:1 };
+  const dsPrev = { label:'Prev', data:prvVals, backgroundColor:colors.map(c=>{
+      // apply alpha to prev ring
+      if(String(c).startsWith('rgba')) return c.replace(/,\s*([0-9.]+)\)$/, ',0.28)');
+      // hex -> rgba via simple fallback
+      return c;
+    }), borderWidth:0, hoverOffset:2, weight:0.7 };
 
   if(grpDonutChart) grpDonutChart.destroy();
   grpDonutChart = new Chart(canvas.getContext('2d'),{
     type:'doughnut',
-    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderWidth:0, hoverOffset:6 }] },
+    data:{ labels, datasets: (grpDonutCompare ? [dsCurrent, dsPrev] : [dsCurrent]) },
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      cutout:'70%',
+      cutout:'62%',
       plugins:{
         legend:{display:false},
-        tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${fmt(c.raw)}` }, bodyFont:{family:'Inter'} }
+        tooltip:{
+          callbacks:{
+            label:(c)=>{
+              const lbl = c.label;
+              const v = c.raw;
+              const which = c.dataset.label;
+              // delta in compare mode
+              if(grpDonutCompare && which==='Current'){
+                const i = c.dataIndex;
+                const pv = prvVals[i]||0;
+                const dv = v - pv;
+                const sign = dv>0?'+':'';
+                return `${lbl}: ${fmt(v)} (Prev ${fmt(pv)}, Δ ${sign}${fmt(dv,true)})`;
+              }
+              return `${lbl}: ${fmt(v)}${grpDonutCompare?` (${which})`:''}`;
+            }
+          },
+          bodyFont:{family:'Inter'}
+        }
       }
     }
   });
 
-  // Legend (Option 2): % + amount + mini bar, click to highlight slice
+  // Legend (Option 2 + compare): % + mini bar + current amount + prev + delta
   legend.innerHTML = labels.map((lbl,i)=>{
-    const v = values[i];
-    const pct = total>0 ? Math.round((v/total)*100) : 0;
-    const valTxt = fmt(v);
-    const w = maxV>0 ? Math.round((v/maxV)*100) : 0;
-    return `<div class="li2" data-i="${i}" style="align-items:center;cursor:pointer;padding:4px 2px;border-radius:8px">
-      <div class="ld" style="background:${colors[i]}"></div>
-      <div class="ll-lbl">${lbl}</div>
-      <div class="ll-val" style="color:${colors[i]}">${pct}%</div>
-      <div class="mini-bar"><div class="mini-fill" style="width:${w}%;background:${colors[i]}"></div></div>
-      <div class="ll-val" style="min-width:78px;text-align:right">${valTxt}</div>
+    const v = curVals[i];
+    const pct = totalCur>0 ? Math.round((v/totalCur)*100) : 0;
+    const w = maxCur>0 ? Math.round((v/maxCur)*100) : 0;
+    const curTxt = fmt(v);
+    const pv = prvVals[i]||0;
+    const prvTxt = fmt(pv);
+    const dv = v - pv;
+    const dsign = dv>0?'+':'';
+    const dcol = dv>0 ? 'var(--exp)' : (dv<0 ? 'var(--inc)' : 'var(--muted)');
+    const deltaTxt = `${dsign}${fmt(dv,true)}`;
+
+    const sub = grpDonutCompare ? `<span class=\"subval\">Prev ${prvTxt}</span><span class=\"delta\" style=\"color:${dcol}\">Δ ${deltaTxt}</span>` : '';
+
+    return `<div class=\"li2\" data-i=\"${i}\" style=\"align-items:center;cursor:pointer;padding:4px 2px;border-radius:8px\">
+      <div class=\"ld\" style=\"background:${colors[i]}\"></div>
+      <div class=\"ll-lbl\">${lbl}</div>
+      <div class=\"ll-val\" style=\"color:${colors[i]}\">${pct}%</div>
+      <div class=\"mini-bar\"><div class=\"mini-fill\" style=\"width:${w}%;background:${colors[i]}\"></div></div>
+      <div class=\"ll-val\" style=\"min-width:78px;text-align:right\">${curTxt}</div>
+      ${sub}
     </div>`;
   }).join('');
 
-  // click handlers
+  // click: highlight slice (current ring)
   [...legend.querySelectorAll('[data-i]')].forEach(row=>{
     row.addEventListener('click', ()=>{
       const i = parseInt(row.getAttribute('data-i'),10);
       if(!grpDonutChart) return;
-      // toggle active
       const cur = grpDonutChart.getActiveElements();
       const same = cur && cur.length && cur[0].index===i;
       grpDonutChart.setActiveElements(same ? [] : [{datasetIndex:0,index:i}]);
@@ -1929,8 +2087,10 @@ function renderGroupDonut(fe,gtype){
     });
   });
 
+  // UI states
   if(resetBtn) resetBtn.style.display = grpDonutGroup ? 'inline-flex' : 'none';
   if(resetBtn && grpDonutGroup) resetBtn.textContent = `Reset (${grpDonutGroup})`;
+  if(hint) hint.style.display = grpDonutCompare ? 'block' : 'none';
 }
 
 function renderCreditA(){
