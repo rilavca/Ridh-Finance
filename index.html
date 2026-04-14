@@ -672,6 +672,9 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
       <div class="stab-page active" id="sp-data">
         <div class="sec-title" style="margin-top:.5rem">Owners</div>
         <div class="card" id="owners-list"></div>
+  <div class="sec-title" style="margin-top:1rem">Accounts order</div>
+  <div class="card" id="acct-order-settings"></div>
+  <div style="font-size:12px;color:var(--muted);margin:0 0 1rem">Use ↑ ↓ to reorder accounts for dropdowns & analytics filters.</div>
         <div style="display:flex;gap:8px;margin-bottom:1.25rem"><input type="text" id="new-owner" placeholder="New owner name" style="flex:1;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;border:1px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text)"><button class="btn-o" onclick="addOwner()">Add</button></div>
       </div>
       <div class="stab-page" id="sp-cats">
@@ -890,7 +893,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,getDocs,getDoc,query,where,enableIndexedDbPersistence}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,sendPasswordResetEmail,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-const APP_VERSION='v15.4.5.5';
+const APP_VERSION='v15.4.5.5-reorder';
 const FC={apiKey:"AIzaSyD62wAObOg5Ic3eJEd9Erp3ljBojgQq7zk",authDomain:"ridh-finance.firebaseapp.com",projectId:"ridh-finance",storageBucket:"ridh-finance.firebasestorage.app",messagingSenderId:"330824386857",appId:"1:330824386857:web:ff45c66c11ea2e8d708f38"};
 const fbApp=initializeApp(FC);
 const db=getFirestore(fbApp);
@@ -913,16 +916,121 @@ let quickType='income';
 let editAcctId=null,editGrpIdx=null,editCatIdx=null,editOwnerIdx=null,editAtypeIdx=null;
 let unsubscribers=[];
 
+// ── Ordering / Reordering helpers ──
+function ord(x){ return (x && typeof x.order==='number') ? x.order : 1e9; }
+function byOrderName(a,b){
+  const d = ord(a) - ord(b);
+  if(d!==0) return d;
+  return String(a.name||'').localeCompare(String(b.name||''));
+}
+function ownerOrder(name){
+  const o = owners.find(x=>x.name===name);
+  return o ? ord(o) : 1e9;
+}
+function groupOrder(name){
+  const g = groups.find(x=>x.name===name);
+  return g ? ord(g) : 1e9;
+}
+function sortOwners(arr){ return (arr||[]).slice().sort(byOrderName); }
+function sortGroups(arr){ return (arr||[]).slice().sort(byOrderName); }
+function sortAcctTypes(arr){ return (arr||[]).slice().sort((a,b)=>{
+  const d=ord(a)-ord(b); if(d!==0) return d;
+  return String(a.name||'').localeCompare(String(b.name||''));
+}); }
+function sortCategories(arr){
+  return (arr||[]).slice().sort((a,b)=>{
+    const dg = groupOrder(a.group||'') - groupOrder(b.group||'');
+    if(dg!==0) return dg;
+    const d = ord(a) - ord(b);
+    if(d!==0) return d;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+}
+function sortAccounts(arr){
+  return (arr||[]).slice().sort((a,b)=>{
+    const do2 = ownerOrder(a.owner||'') - ownerOrder(b.owner||'');
+    if(do2!==0) return do2;
+    const d = ord(a) - ord(b);
+    if(d!==0) return d;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+}
+function nextOrder(arr){
+  const m = (arr||[]).reduce((mx,x)=>Math.max(mx, (typeof x.order==='number')?x.order:0), 0);
+  return (m||0) + 10;
+}
+async function initOrderForCol(col){
+  let arr = [];
+  if(col==='owners') arr = owners;
+  else if(col==='groups') arr = groups;
+  else if(col==='categories') arr = categories;
+  else if(col==='acctTypes') arr = acctTypes;
+  else if(col==='accounts') arr = accounts;
+  else return;
+
+  if(!arr.length) return;
+  if(arr.every(x=>typeof x.order==='number')) return;
+
+  const sorted = arr.slice().sort((a,b)=>{
+    const d = ord(a)-ord(b);
+    if(d!==0) return d;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+
+  const batch = writeBatch(db);
+  sorted.forEach((item,i)=>{
+    const order = i*10;
+    const id = String(item.id);
+    batch.set(doc(db, `familyData/${currentFamilyId}/${col}`, id), { ...item, id, order });
+  });
+  await batch.commit();
+  toast('✓ Ordering initialized');
+}
+
+window.moveOrder = function(col, id, dir){
+  (async()=>{
+    if(!currentFamilyId) return;
+    await initOrderForCol(col);
+
+    let arr = [];
+    if(col==='owners') arr = sortOwners(owners);
+    else if(col==='groups') arr = sortGroups(groups);
+    else if(col==='categories') arr = sortCategories(categories);
+    else if(col==='acctTypes') arr = sortAcctTypes(acctTypes);
+    else if(col==='accounts') arr = sortAccounts(accounts);
+    else return;
+
+    const idx = arr.findIndex(x=>String(x.id)===String(id));
+    if(idx<0) return;
+    const j = idx + (dir<0?-1:1);
+    if(j<0 || j>=arr.length) return;
+
+    const a = arr[idx];
+    const b = arr[j];
+    const ao = (typeof a.order==='number') ? a.order : idx*10;
+    const bo = (typeof b.order==='number') ? b.order : j*10;
+
+    await fsSet(col, a.id, { ...a, order: bo });
+    await fsSet(col, b.id, { ...b, order: ao });
+
+    if(document.querySelector('#page-settings.active')) renderSettings();
+    onDataChange();
+  })().catch(()=>toast('Reorder failed'));
+};
+
+
 // ✅ Ensures Analytics category multi-selects are always populated (module-safe)
 function ensureCatMultiSelect(selectId, selectedArr, onChangeFn){
   const sel = document.getElementById(selectId);
   if(!sel) return;
 
-  const cats = (categories || []).slice().sort((a,b)=>{
-    const ga = (a.group || '').localeCompare(b.group || '');
-    if(ga !== 0) return ga;
-    return (a.name || '').localeCompare(b.name || '');
-  });
+  const cats = (categories||[]).slice().sort((a,b)=>{
+  const dg = groupOrder(a.group||'') - groupOrder(b.group||'');
+  if(dg!==0) return dg;
+  const d = ord(a) - ord(b);
+  if(d!==0) return d;
+  return (a.name||'').localeCompare(b.name||'');
+});
 
   const prev = new Set(selectedArr || []);
   const scrollTop = sel.scrollTop;
@@ -1341,7 +1449,7 @@ window.copyInviteCode=function(){
 
 function subscribeToFamily(){
   unsubscribers.forEach(u=>u());unsubscribers=[];
-  const cols={entries:e=>{entries=e.sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));},accounts:e=>{accounts=e;},categories:e=>{categories=e;},groups:e=>{groups=e;},owners:e=>{owners=e;},acctTypes:e=>{acctTypes=e;},members:e=>{familyMembers=e;renderMembers();}};
+  const cols={entries:e=>{entries=e.sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));},accounts:e=>{accounts=sortAccounts(e);},categories:e=>{categories=sortCategories(e);},groups:e=>{groups=sortGroups(e);},owners:e=>{owners=sortOwners(e);},acctTypes:e=>{acctTypes=sortAcctTypes(e);},members:e=>{familyMembers=e;renderMembers();}};
   const budRef=collection(db,`familyData/${currentFamilyId}/budgets`);
   unsubscribers.push(onSnapshot(budRef,snap=>{budgets={};snap.docs.forEach(d=>{const b=d.data();if(b.group&&b.amount)budgets[b.group]=b.amount;});},()=>{}));
   Object.entries(cols).forEach(([col,setter])=>{
@@ -1787,7 +1895,7 @@ window.saveAcct=async function(){
   const excludeNetWorth=!!document.getElementById('ma-exnw')?.checked;
   const excludeAnalytics=!!document.getElementById('ma-exan')?.checked;
   const isBusiness=!!document.getElementById('ma-biz')?.checked;
-  await fsSet('accounts',id,{id,name,owner,type,openingBalance:ob,limit:lim,disabled,excludeNetWorth,excludeAnalytics,isBusiness});
+  await fsSet('accounts',id,{id,name,owner,type,openingBalance:ob,limit:lim,disabled,excludeNetWorth,excludeAnalytics,isBusiness,order:(editAcctId? (accounts.find(a=>a.id===editAcctId)?.order): undefined) ?? nextOrder(accounts)});
   document.getElementById('mo-acct').classList.remove('open');toast(editAcctId?'✓ Account updated':'✓ Account added');editAcctId=null;
 };
 window.delAcct=async function(id){
@@ -1828,23 +1936,43 @@ window.renderStmt=function(){
 };
 
 // ── Settings ──
-function renderSettings(){renderOwners();renderGrpSettings();renderCatSettings();renderAcctTypesSettings();}
-function renderOwners(){document.getElementById('owners-list').innerHTML=owners.map((o,i)=>`<div class="li-row"><div><div class="li-name">${o.name}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditOwner(${i})">Edit</button><button class="del" onclick="delOwner('${o.id}')">×</button></div></div>`).join('');}function renderGrpSettings(){document.getElementById('grp-list-settings').innerHTML=groups.map((g,i)=>`<div class="li-row"><div><div class="li-name">${g.name}</div><div class="li-meta">${g.type}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditGrp(${i})">Edit</button><button class="del" onclick="delGrp('${g.id}')">×</button></div></div>`).join('');}
+function renderSettings(){renderOwners();renderAcctOrderSettings();renderGrpSettings();renderCatSettings();renderAcctTypesSettings();}
+function renderOwners(){document.getElementById('owners-list').innerHTML=owners.map((o,i)=>`<div class="li-row"><div><div class="li-name">${o.name}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditOwner(${i})">Edit</button><button class="del" onclick="delOwner('${o.id}')">×</button></div></div>`).join('');}
+
+function renderAcctOrderSettings(){
+  const el=document.getElementById('acct-order-settings');
+  if(!el) return;
+  const accts=sortAccounts(getScopedAccounts().filter(a=>!a.disabled));
+  if(!accts.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">No accounts</div>';return;}
+  const by={};
+  accts.forEach(a=>{ if(!by[a.owner]) by[a.owner]=[]; by[a.owner].push(a); });
+  const ownerList=sortOwners(owners).map(o=>o.name);
+  const ownersIn=[...new Set(accts.map(a=>a.owner))].sort((a,b)=>ownerOrder(a)-ownerOrder(b) || a.localeCompare(b));
+  const orderedOwners=[...new Set([...ownerList, ...ownersIn])];
+  el.innerHTML=orderedOwners.map(owner=>{
+    const list=by[owner]||[];
+    if(!list.length) return '';
+    return `<div style="padding:.4rem 0 .2rem;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${owner}</div>`+
+      list.map(a=>`<div class="li-row"><div><div class="li-name">${a.name}</div><div class="li-meta">${getAcctType(a.type).name}</div></div><div class="li-actions"><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',-1)">↑</button><button class="btn-sm" onclick="moveOrder('accounts','${a.id}',1)">↓</button></div></div>`).join('');
+  }).join('');
+}
+
+function renderGrpSettings(){document.getElementById('grp-list-settings').innerHTML=groups.map((g,i)=>`<div class="li-row"><div><div class="li-name">${g.name}</div><div class="li-meta">${g.type}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditGrp(${i})">Edit</button><button class="del" onclick="delGrp('${g.id}')">×</button></div></div>`).join('');}
 function renderCatSettings(){document.getElementById('cat-list-settings').innerHTML=categories.map((c,i)=>`<div class="li-row"><div><div class="li-name">${c.name}</div><div class="li-meta">${c.group||'—'} · ${c.type||'—'}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditCat(${i})">Edit</button><button class="del" onclick="delCat('${c.id||c.name}')">×</button></div></div>`).join('');}
 function renderAcctTypesSettings(){document.getElementById('acct-types-list').innerHTML=acctTypes.map((t,i)=>`<div class="li-row"><div><div class="li-name">${t.icon||''} ${t.name}</div><div class="li-meta">${t.isCredit?'Credit/LOC':'Non-credit'}</div></div><div class="li-actions"><button class="btn-sm" onclick="openEditAcctType(${i})">Edit</button><button class="del" onclick="delAcctType('${t.id}')">×</button></div></div>`).join('');}
 
-window.addOwner=async function(){const v=document.getElementById('new-owner').value.trim();if(!v)return;await fsSet('owners','o'+Date.now(),{id:'o'+Date.now(),name:v});document.getElementById('new-owner').value='';toast('Owner added');};
+window.addOwner=async function(){const v=document.getElementById('new-owner').value.trim();if(!v)return;await fsSet('owners','o'+Date.now(),{id:'o'+Date.now(),name:v,order:nextOrder(owners)});document.getElementById('new-owner').value='';toast('Owner added');};
 window.openEditOwner=function(i){editOwnerIdx=i;document.getElementById('eo-name').value=owners[i].name;document.getElementById('mo-edit-owner').classList.add('open');};
 window.saveEditOwner=async function(){const name=document.getElementById('eo-name').value.trim();if(!name)return;const o=owners[editOwnerIdx];await fsSet('owners',o.id,{...o,name});document.getElementById('mo-edit-owner').classList.remove('open');toast('Owner updated');editOwnerIdx=null;};
-window.delOwner=async function(id){if(!confirm('Delete owner?'))return;await fsDel('owners',id);toast('Deleted');};window.addGrp=async function(){const v=document.getElementById('new-grp').value.trim();if(!v)return;const t=document.getElementById('new-grp-type').value;await fsSet('groups','g'+Date.now(),{id:'g'+Date.now(),name:v,type:t});document.getElementById('new-grp').value='';toast('Group added');};
+window.delOwner=async function(id){if(!confirm('Delete owner?'))return;await fsDel('owners',id);toast('Deleted');};window.addGrp=async function(){const v=document.getElementById('new-grp').value.trim();if(!v)return;const t=document.getElementById('new-grp-type').value;await fsSet('groups','g'+Date.now(),{id:'g'+Date.now(),name:v,type:t,order:nextOrder(groups)});document.getElementById('new-grp').value='';toast('Group added');};
 window.openEditGrp=function(i){editGrpIdx=i;document.getElementById('eg-name').value=groups[i].name;document.getElementById('eg-type').value=groups[i].type||'expense';document.getElementById('mo-edit-grp').classList.add('open');};
 window.saveEditGrp=async function(){const name=document.getElementById('eg-name').value.trim();if(!name)return;const g=groups[editGrpIdx];await fsSet('groups',g.id,{...g,name,type:document.getElementById('eg-type').value});document.getElementById('mo-edit-grp').classList.remove('open');toast('Group updated');editGrpIdx=null;};
 window.delGrp=async function(id){if(!confirm('Delete group?'))return;await fsDel('groups',id);};
-window.addCat=async function(){const v=document.getElementById('new-cat').value.trim();if(!v)return;const grp=document.getElementById('new-cat-grp').value,t=document.getElementById('new-cat-type').value;await fsSet('categories','c'+Date.now(),{id:'c'+Date.now(),name:v,group:grp,type:t});document.getElementById('new-cat').value='';toast('Category added');};
+window.addCat=async function(){const v=document.getElementById('new-cat').value.trim();if(!v)return;const grp=document.getElementById('new-cat-grp').value,t=document.getElementById('new-cat-type').value;await fsSet('categories','c'+Date.now(),{id:'c'+Date.now(),name:v,group:grp,type:t,order:nextOrder(categories)});document.getElementById('new-cat').value='';toast('Category added');};
 window.openEditCat=function(i){editCatIdx=i;const c=categories[i];document.getElementById('ec-name').value=c.name;document.getElementById('ec-type').value=c.type||'expense';const mg=document.getElementById('ec-grp');mg.innerHTML='';groups.forEach(g=>{const o=document.createElement('option');o.value=g.name;o.textContent=g.name;mg.appendChild(o);});mg.value=c.group||'';document.getElementById('mo-edit-cat').classList.add('open');};
 window.saveEditCat=async function(){const name=document.getElementById('ec-name').value.trim();if(!name)return;const c=categories[editCatIdx];await fsSet('categories',c.id||('c'+Date.now()),{...c,name,group:document.getElementById('ec-grp').value,type:document.getElementById('ec-type').value});document.getElementById('mo-edit-cat').classList.remove('open');toast('Category updated');editCatIdx=null;};
 window.delCat=async function(id){if(!confirm('Delete category?'))return;await fsDel('categories',id);};
-window.addAcctType=async function(){const name=document.getElementById('new-atype-name').value.trim();if(!name)return;const icon=document.getElementById('new-atype-icon').value.trim()||'🔖';const isCredit=document.getElementById('new-atype-credit').value==='true';const id=name.toLowerCase().replace(/\s+/g,'_')+'_'+Date.now();await fsSet('acctTypes',id,{id,name,icon,isCredit});document.getElementById('new-atype-name').value='';document.getElementById('new-atype-icon').value='';toast('Account type added');};
+window.addAcctType=async function(){const name=document.getElementById('new-atype-name').value.trim();if(!name)return;const icon=document.getElementById('new-atype-icon').value.trim()||'🔖';const isCredit=document.getElementById('new-atype-credit').value==='true';const id=name.toLowerCase().replace(/\s+/g,'_')+'_'+Date.now();await fsSet('acctTypes',id,{id,name,icon,isCredit,order:nextOrder(acctTypes)});document.getElementById('new-atype-name').value='';document.getElementById('new-atype-icon').value='';toast('Account type added');};
 window.openEditAcctType=function(i){editAtypeIdx=i;const t=acctTypes[i];document.getElementById('eat-name').value=t.name;document.getElementById('eat-icon').value=t.icon||'';document.getElementById('eat-credit').value=String(t.isCredit||false);document.getElementById('mo-edit-atype').classList.add('open');};
 window.saveEditAcctType=async function(){const name=document.getElementById('eat-name').value.trim();if(!name)return;const t=acctTypes[editAtypeIdx];await fsSet('acctTypes',t.id,{...t,name,icon:document.getElementById('eat-icon').value.trim()||'🔖',isCredit:document.getElementById('eat-credit').value==='true'});document.getElementById('mo-edit-atype').classList.remove('open');toast('Updated');editAtypeIdx=null;};
 window.delAcctType=async function(id){if(!confirm('Delete?'))return;await fsDel('acctTypes',id);};
