@@ -1678,7 +1678,9 @@ function renderPivot(){
   ensureCatMultiSelect('pv-cats', pvCatsSel, (vals)=>{ pvCatsSel = vals; renderPivot(); });
 
   const yr=document.getElementById('pv-year').value||'all',pt=document.getElementById('pv-type').value||'expense',pp=document.getElementById('pv-person').value||'all';
-  const fe=filteredEntries({year:yr,person:pp}).filter(e=>pt==='both'?e.type!=='transfer':e.type===pt);
+  let fe=filteredEntries({year:yr,person:pp}).filter(e=>pt==='both'?e.type!=='transfer':e.type===pt);
+  // ✅ Apply category filter (multi-select)
+  if(Array.isArray(pvCatsSel) && pvCatsSel.length) fe = fe.filter(e=>pvCatsSel.includes(e.category));
   const months=[...new Set(fe.map(e=>mk(e.date)))].sort();
   if(!months.length){document.getElementById('pivot-table').innerHTML='<tr><td style="padding:2rem;color:var(--muted);font-size:13px">No data</td></tr>';return;}
   const data={};fe.forEach(e=>{const g=getCat(e.category).group||'Other';if(!data[g])data[g]={};if(!data[g][e.category])data[g][e.category]={};const m=mk(e.date);data[g][e.category][m]=(data[g][e.category][m]||0)+Math.abs(e.amount);});
@@ -1702,7 +1704,9 @@ function renderGroupA(){
 
   const month=document.getElementById('grp-month').value,gtype=document.getElementById('grp-type').value||'expense',gp=document.getElementById('grp-person').value||'all',ga=document.getElementById('grp-account').value||'all';
   if(!month)return;
-  const fe=filteredEntries({month,person:gp,account:ga}).filter(e=>e.type===gtype);
+  let fe=filteredEntries({month,person:gp,account:ga}).filter(e=>e.type===gtype);
+  // ✅ Apply category filter (multi-select)
+  if(Array.isArray(grpCatsSel) && grpCatsSel.length) fe = fe.filter(e=>grpCatsSel.includes(e.category));
   const gd={};fe.forEach(e=>{const g=getCat(e.category).group||'Other';gd[g]=(gd[g]||0)+Math.abs(e.amount);});
   const sorted=Object.entries(gd).sort((a,b)=>b[1]-a[1]);
   if(groupChart)groupChart.destroy();
